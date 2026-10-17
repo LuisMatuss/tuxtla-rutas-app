@@ -32,12 +32,25 @@ export function useGeoRoutes() {
     }
   }, []);
 
-  // Sondeo de telemetría en tiempo real (cada 4 segundos)
+  // Sondeo de telemetría en tiempo real (cada 2 segundos) y motor de animación fluida LERP (cada 250ms)
   const pollTelemetry = useCallback(async () => {
     try {
       const res = await apiClient.fetchTelemetry();
       if (res.data && Array.isArray(res.data)) {
-        setTelemetryUnits(res.data);
+        setTelemetryUnits((prevUnits) => {
+          // Si ya existen unidades previas, fusionamos para evitar parpadeos
+          if (!prevUnits || prevUnits.length === 0) return res.data;
+          const prevMap = new Map(prevUnits.map((u) => [u.unitId, u]));
+          return res.data.map((fresh) => {
+            const prev = prevMap.get(fresh.unitId);
+            return {
+              ...fresh,
+              // Mantener referencias suaves
+              animLat: prev?.animLat || fresh.lat,
+              animLng: prev?.animLng || fresh.lng
+            };
+          });
+        });
       }
     } catch (err) {
       console.warn('[useGeoRoutes] Error al consultar telemetría en vivo:', err);
@@ -48,13 +61,61 @@ export function useGeoRoutes() {
     loadRoutes();
     pollTelemetry();
 
-    // Intervalo de telemetría cada 4 segundos
-    const timer = setInterval(() => {
+    // Sondeo de servidor cada 2 segundos
+    const pollTimer = setInterval(() => {
       pollTelemetry();
-    }, 4000);
+    }, 2000);
 
-    return () => clearInterval(timer);
+    // Bucle cinemático suave LERP en el cliente (cada 250ms - 4 veces por segundo)
+    let lastTick = Date.now();
+    const animTimer = setInterval(() => {
+      const now = Date.now();
+      const dt = (now - lastTick) / 1000;
+      lastTick = now;
+
+      setTelemetryUnits((prevUnits) => {
+        if (!prevUnits || prevUnits.length === 0) return prevUnits;
+
+        return prevUnits.map((unit) => {
+          // Si está subiendo pasaje (BOARDING), decrementar cuenta regresiva de 15 segundos
+          if (unit.status === 'BOARDING') {
+            const remaining = Math.max(0, (unit.dwellRemainingSec || 15) - dt);
+            return {
+              ...unit,
+              dwellRemainingSec: remaining,
+              speedKmh: 0,
+              animLat: unit.lat,
+              animLng: unit.lng,
+              status: remaining <= 0 ? 'IN_TRANSIT' : 'BOARDING'
+            };
+          }
+
+          // En tránsito: Interpolación lineal hacia las coordenadas objetivo
+          const targetLat = unit.lat;
+          const targetLng = unit.lng;
+          const currentLat = unit.animLat !== undefined ? unit.animLat : targetLat;
+          const currentLng = unit.animLng !== undefined ? unit.animLng : targetLng;
+
+          // LERP suave hacia el objetivo
+          const lerpFactor = 0.25; // avance progresivo suave cada 250ms
+          const nextLat = currentLat + (targetLat - currentLat) * lerpFactor;
+          const nextLng = currentLng + (targetLng - currentLng) * lerpFactor;
+
+          return {
+            ...unit,
+            animLat: nextLat,
+            animLng: nextLng
+          };
+        });
+      });
+    }, 250);
+
+    return () => {
+      clearInterval(pollTimer);
+      clearInterval(animTimer);
+    };
   }, [loadRoutes, pollTelemetry]);
+
 
   // Ruta activa según selectedRouteId
   const selectedRoute = useMemo(() => {

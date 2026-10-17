@@ -1,5 +1,5 @@
 // Componente Cartográfico: Contenedor Leaflet interactivo para Tuxtla Gutiérrez
-import React, { useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { RouteLayer } from './RouteLayer.jsx';
@@ -8,6 +8,34 @@ import { LiveUnitsLayer } from './LiveUnitsLayer.jsx';
 
 const TUXTLA_CENTER = [16.7516, -93.1161];
 const DEFAULT_ZOOM = 13;
+
+// Catálogo de capas base 100% libres de API Key
+const BASEMAP_PROVIDERS = {
+  osm: {
+    id: 'osm',
+    name: 'Mapa Urbano OSM (Estándar)',
+    icon: '🗺️',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  },
+  esri: {
+    id: 'esri',
+    name: 'Mapa Vial Claro (Esri Street)',
+    icon: '🛣️',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, METI, TomTom',
+    maxZoom: 19
+  },
+  hot: {
+    id: 'hot',
+    name: 'Mapa Humanitario (OSM HOT)',
+    icon: '🌍',
+    url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles style by HOT',
+    maxZoom: 19
+  }
+};
 
 /**
  * Controlador de eventos del mapa: Clics para geolocalizar usuario
@@ -84,6 +112,12 @@ export function MapView({
   onSelectRoute,
   onSelectStop
 }) {
+  // Capa base seleccionada (por defecto OSM Estándar)
+  const [activeBasemapKey, setActiveBasemapKey] = useState('osm');
+  const [showLayerMenu, setShowLayerMenu] = useState(false);
+
+  const currentBasemap = BASEMAP_PROVIDERS[activeBasemapKey] || BASEMAP_PROVIDERS.osm;
+
   // Paradas visibles según la selección actual
   const visibleStops = useMemo(() => {
     if (selectedRoute && selectedRoute.stops && selectedRoute.stops.length > 0) {
@@ -111,17 +145,126 @@ export function MapView({
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      {/* Selector Flotante de Capas en la esquina superior derecha */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
+          zIndex: 1000
+        }}
+      >
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            id="basemap-selector-toggle"
+            onClick={() => setShowLayerMenu(!showLayerMenu)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 14px',
+              background: 'rgba(15, 23, 42, 0.88)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '12px',
+              color: '#f8fafc',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span>{currentBasemap.icon}</span>
+            <span>{currentBasemap.name}</span>
+            <span style={{ fontSize: '10px', opacity: 0.7 }}>▼</span>
+          </button>
+
+          {showLayerMenu && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '110%',
+                right: 0,
+                width: '260px',
+                background: 'rgba(15, 23, 42, 0.96)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '12px',
+                padding: '8px',
+                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#94a3b8',
+                  padding: '4px 8px 2px'
+                }}
+              >
+                Capas 100% Libres (Sin API Key)
+              </div>
+
+              {Object.values(BASEMAP_PROVIDERS).map((provider) => {
+                const isSelected = provider.id === activeBasemapKey;
+                return (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveBasemapKey(provider.id);
+                      setShowLayerMenu(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '8px 10px',
+                      background: isSelected
+                        ? 'rgba(37, 99, 235, 0.25)'
+                        : 'transparent',
+                      border: isSelected
+                        ? '1px solid rgba(59, 130, 246, 0.5)'
+                        : '1px solid transparent',
+                      borderRadius: '8px',
+                      color: isSelected ? '#60a5fa' : '#e2e8f0',
+                      fontSize: '12px',
+                      fontWeight: isSelected ? 700 : 500,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.15s ease'
+                    }}
+                  >
+                    <span style={{ fontSize: '16px' }}>{provider.icon}</span>
+                    <span style={{ flex: 1 }}>{provider.name}</span>
+                    {isSelected && <span style={{ color: '#60a5fa' }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       <MapContainer
         center={TUXTLA_CENTER}
         zoom={DEFAULT_ZOOM}
         style={{ width: '100%', height: '100%' }}
         zoomControl={true}
       >
-        {/* Capa de mosaicos CartoDB Voyager para alta legibilidad urbana */}
+        {/* Capa de mosaicos oficial libre de API Key con render dinámico según selección */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          maxZoom={19}
+          key={currentBasemap.id}
+          url={currentBasemap.url}
+          attribution={currentBasemap.attribution}
+          maxZoom={currentBasemap.maxZoom}
         />
 
         {/* Controladores de cámara y eventos */}
@@ -180,3 +323,4 @@ export function MapView({
     </div>
   );
 }
+

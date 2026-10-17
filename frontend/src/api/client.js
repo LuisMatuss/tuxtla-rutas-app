@@ -1,13 +1,13 @@
 // Cliente API HTTP con Resiliencia Offline / Demo para Tuxtla-Rutas
 // Si el backend o contenedor de base de datos no está disponible, activa automáticamente
-// el dataset de respaldo con datos reales de Tuxtla Gutiérrez, cálculo Haversine y telemetría simulada.
+// el dataset de respaldo con las 8 rutas reales de Tuxtla Gutiérrez, cálculo Haversine y telemetría simulada LERP.
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Cálculo de distancia geodésica mediante la fórmula de Haversine (en metros)
  */
-function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+export function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3; // Radio medio de la Tierra en metros
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;
@@ -23,20 +23,29 @@ function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Dataset de Respaldo Georreferenciado Sincronizado con 03_seed_tuxtla.sql
+ * Catálogo Maestro de Respaldo Georreferenciado Sincronizado con las 8 Rutas de Tuxtla Gutiérrez
  */
 export const BACKUP_ROUTES = [
+  // 1. Ruta 1 - Av. Central / UNACH / Terán
   {
     id: 'a0000001-0000-0000-0000-000000000001',
-    name: 'Ruta 1 - Centro / Terán',
-    description:
-      'Ruta troncal poniente-oriente que conecta la delegación de Terán, UNACH Campus I, Blvd. Belisario Domínguez, Parque de la Marimba, Parque Central y Diana Cazadora.',
+    name: 'Ruta 1 - Av. Central / UNACH / Terán',
+    description: 'Troncal Poniente-Oriente por Blvd. Belisario Domínguez, Parque de la Marimba, Parque Central y Hospital Gómez Maza.',
     color: '#2563EB',
+    scheduleInfo: {
+      firstRun: '05:30',
+      lastRun: '22:30',
+      frequencyMinutes: 6,
+      estimatedWaitMinutes: 3,
+      status: 'OPERATIONAL'
+    },
     geometry: {
       type: 'LineString',
       coordinates: [
         [-93.1685, 16.7450],
+        [-93.1640, 16.7505],
         [-93.1602, 16.7535],
+        [-93.1568, 16.7565],
         [-93.1534, 16.7589],
         [-93.1410, 16.7565],
         [-93.1235, 16.7547],
@@ -44,9 +53,75 @@ export const BACKUP_ROUTES = [
         [-93.1161, 16.7516],
         [-93.1065, 16.7495],
         [-93.0880, 16.7470],
-        [-93.0833, 16.7455]
+        [-93.0815, 16.7450]
       ]
     },
+    stops: [
+      { id: 'b0000001-0000-0000-0000-000000000001', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Terminal Parque Terán', lat: 16.7450, lng: -93.1685, stopOrder: 1, geometry: { type: 'Point', coordinates: [-93.1685, 16.7450] } },
+      { id: 'b0000001-0000-0000-0000-000000000002', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Crucero Terán', lat: 16.7505, lng: -93.1640, stopOrder: 2, geometry: { type: 'Point', coordinates: [-93.1640, 16.7505] } },
+      { id: 'b0000001-0000-0000-0000-000000000003', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'UNACH Campus I', lat: 16.7535, lng: -93.1602, stopOrder: 3, geometry: { type: 'Point', coordinates: [-93.1602, 16.7535] } },
+      { id: 'b0000001-0000-0000-0000-000000000004', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Jardines de Tuxtla', lat: 16.7565, lng: -93.1568, stopOrder: 4, geometry: { type: 'Point', coordinates: [-93.1568, 16.7565] } },
+      { id: 'b0000001-0000-0000-0000-000000000005', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Plaza Cristal / Caña Hueca', lat: 16.7589, lng: -93.1534, stopOrder: 5, geometry: { type: 'Point', coordinates: [-93.1534, 16.7589] } },
+      { id: 'b0000001-0000-0000-0000-000000000006', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Rectoría UNICACH / 15a Pte', lat: 16.7565, lng: -93.1410, stopOrder: 6, geometry: { type: 'Point', coordinates: [-93.1410, 16.7565] } },
+      { id: 'b0000001-0000-0000-0000-000000000007', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Parque de la Marimba', lat: 16.7547, lng: -93.1235, stopOrder: 7, geometry: { type: 'Point', coordinates: [-93.1235, 16.7547] } },
+      { id: 'b0000001-0000-0000-0000-000000000008', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Parque Bicentenario', lat: 16.7538, lng: -93.1215, stopOrder: 8, geometry: { type: 'Point', coordinates: [-93.1215, 16.7538] } },
+      { id: 'b0000001-0000-0000-0000-000000000009', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Parque Central / Catedral', lat: 16.7516, lng: -93.1161, stopOrder: 9, geometry: { type: 'Point', coordinates: [-93.1161, 16.7516] } },
+      { id: 'b0000001-0000-0000-0000-000000000010', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Parque 5 de Mayo', lat: 16.7495, lng: -93.1065, stopOrder: 10, geometry: { type: 'Point', coordinates: [-93.1065, 16.7495] } },
+      { id: 'b0000001-0000-0000-0000-000000000011', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Polyforum / Torre Chiapas', lat: 16.7470, lng: -93.0880, stopOrder: 11, geometry: { type: 'Point', coordinates: [-93.0880, 16.7470] } },
+      { id: 'b0000001-0000-0000-0000-000000000012', routeId: 'a0000001-0000-0000-0000-000000000001', name: 'Hospital Gómez Maza / Diana Cazadora', lat: 16.7450, lng: -93.0815, stopOrder: 12, geometry: { type: 'Point', coordinates: [-93.0815, 16.7450] } }
+    ]
+  },
+
+  // 2. Ruta A - Circuito Av. Central / Patria Nueva
+  {
+    id: 'a0000002-0000-0000-0000-000000000002',
+    name: 'Ruta A - Circuito Av. Central / Patria Nueva',
+    description: 'Enlaza Juan Crispín, Tec de Tuxtla, Av. Central, Centro y colonias del extremo oriente como Patria Nueva.',
+    color: '#DC2626',
+    scheduleInfo: {
+      firstRun: '05:45',
+      lastRun: '22:15',
+      frequencyMinutes: 7,
+      estimatedWaitMinutes: 4,
+      status: 'OPERATIONAL'
+    },
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-93.1750, 16.7595],
+        [-93.1655, 16.7575],
+        [-93.1602, 16.7535],
+        [-93.1534, 16.7589],
+        [-93.1295, 16.7554],
+        [-93.1235, 16.7547],
+        [-93.1161, 16.7516],
+        [-93.1110, 16.7505],
+        [-93.1065, 16.7495],
+        [-93.0950, 16.7380],
+        [-93.0795, 16.7335]
+      ]
+    },
+    stops: [
+      { id: 'b0000002-0000-0000-0000-000000000001', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'Crucero Juan Crispín', lat: 16.7595, lng: -93.1750, stopOrder: 1, geometry: { type: 'Point', coordinates: [-93.1750, 16.7595] } },
+      { id: 'b0000002-0000-0000-0000-000000000002', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'Tecnológico de Tuxtla ITTG', lat: 16.7575, lng: -93.1655, stopOrder: 2, geometry: { type: 'Point', coordinates: [-93.1655, 16.7575] } },
+      { id: 'b0000002-0000-0000-0000-000000000003', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'UNACH Blvd. Belisario', lat: 16.7535, lng: -93.1602, stopOrder: 3, geometry: { type: 'Point', coordinates: [-93.1602, 16.7535] } },
+      { id: 'b0000002-0000-0000-0000-000000000004', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'Plaza Cristal', lat: 16.7589, lng: -93.1534, stopOrder: 4, geometry: { type: 'Point', coordinates: [-93.1534, 16.7589] } },
+      { id: 'b0000002-0000-0000-0000-000000000005', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'Av. Central y 11a Pte', lat: 16.7554, lng: -93.1295, stopOrder: 5, geometry: { type: 'Point', coordinates: [-93.1295, 16.7554] } },
+      { id: 'b0000002-0000-0000-0000-000000000006', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'Parque de la Marimba', lat: 16.7547, lng: -93.1235, stopOrder: 6, geometry: { type: 'Point', coordinates: [-93.1235, 16.7547] } },
+      { id: 'b0000002-0000-0000-0000-000000000007', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'Parque Central', lat: 16.7516, lng: -93.1161, stopOrder: 7, geometry: { type: 'Point', coordinates: [-93.1161, 16.7516] } },
+      { id: 'b0000002-0000-0000-0000-000000000008', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'Mercado Díaz Ordaz', lat: 16.7505, lng: -93.1110, stopOrder: 8, geometry: { type: 'Point', coordinates: [-93.1110, 16.7505] } },
+      { id: 'b0000002-0000-0000-0000-000000000009', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'Parque 5 de Mayo', lat: 16.7495, lng: -93.1065, stopOrder: 9, geometry: { type: 'Point', coordinates: [-93.1065, 16.7495] } },
+      { id: 'b0000002-0000-0000-0000-000000000010', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'Fuente Mactumatzá Ote', lat: 16.7380, lng: -93.0950, stopOrder: 10, geometry: { type: 'Point', coordinates: [-93.0950, 16.7380] } },
+      { id: 'b0000002-0000-0000-0000-000000000011', routeId: 'a0000002-0000-0000-0000-000000000002', name: 'Terminal Patria Nueva', lat: 16.7335, lng: -93.0795, stopOrder: 11, geometry: { type: 'Point', coordinates: [-93.0795, 16.7335] } }
+    ]
+  },
+
+  // 3. Ruta 43 - Libramiento Sur (Poniente - Oriente)
+  {
+    id: 'a0000003-0000-0000-0000-000000000003',
+    name: 'Ruta 43 - Libramiento Sur (Poniente - Oriente)',
+    description: 'Corredor perimetral de alta velocidad conectando Real del Bosque, Chedraui Sur, Villaflores y Central de Abastos.',
+    color: '#D97706',
     scheduleInfo: {
       firstRun: '05:30',
       lastRun: '22:00',
@@ -54,209 +129,341 @@ export const BACKUP_ROUTES = [
       estimatedWaitMinutes: 4,
       status: 'OPERATIONAL'
     },
-    stops: [
-      {
-        id: 'b0000001-0000-0000-0000-000000000001',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        name: 'Terminal Poniente - Parque Terán',
-        lat: 16.7450,
-        lng: -93.1685,
-        stopOrder: 1,
-        geometry: { type: 'Point', coordinates: [-93.1685, 16.7450] }
-      },
-      {
-        id: 'b0000001-0000-0000-0000-000000000002',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        name: 'UNACH Campus I (Blvd. Belisario Domínguez)',
-        lat: 16.7535,
-        lng: -93.1602,
-        stopOrder: 2,
-        geometry: { type: 'Point', coordinates: [-93.1602, 16.7535] }
-      },
-      {
-        id: 'b0000001-0000-0000-0000-000000000003',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        name: 'Plaza Cristal / Parque Caña Hueca',
-        lat: 16.7589,
-        lng: -93.1534,
-        stopOrder: 3,
-        geometry: { type: 'Point', coordinates: [-93.1534, 16.7589] }
-      },
-      {
-        id: 'b0000001-0000-0000-0000-000000000004',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        name: 'Rectoría UNICACH / 15a Poniente',
-        lat: 16.7565,
-        lng: -93.1410,
-        stopOrder: 4,
-        geometry: { type: 'Point', coordinates: [-93.1410, 16.7565] }
-      },
-      {
-        id: 'b0000001-0000-0000-0000-000000000005',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        name: 'Parque de la Marimba (Av. Central y 8a Pte)',
-        lat: 16.7547,
-        lng: -93.1235,
-        stopOrder: 5,
-        geometry: { type: 'Point', coordinates: [-93.1235, 16.7547] }
-      },
-      {
-        id: 'b0000001-0000-0000-0000-000000000006',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        name: 'Parque Bicentenario (Av. Central y 2a Pte)',
-        lat: 16.7538,
-        lng: -93.1215,
-        stopOrder: 6,
-        geometry: { type: 'Point', coordinates: [-93.1215, 16.7538] }
-      },
-      {
-        id: 'b0000001-0000-0000-0000-000000000007',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        name: 'Parque Central / Catedral de San Marcos',
-        lat: 16.7516,
-        lng: -93.1161,
-        stopOrder: 7,
-        geometry: { type: 'Point', coordinates: [-93.1161, 16.7516] }
-      },
-      {
-        id: 'b0000001-0000-0000-0000-000000000008',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        name: 'Parque 5 de Mayo (Av. Central y 11a Ote)',
-        lat: 16.7495,
-        lng: -93.1065,
-        stopOrder: 8,
-        geometry: { type: 'Point', coordinates: [-93.1065, 16.7495] }
-      },
-      {
-        id: 'b0000001-0000-0000-0000-000000000009',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        name: 'Polyforum Chiapas / Centro de Convenciones',
-        lat: 16.7470,
-        lng: -93.0880,
-        stopOrder: 9,
-        geometry: { type: 'Point', coordinates: [-93.0880, 16.7470] }
-      },
-      {
-        id: 'b0000001-0000-0000-0000-000000000010',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        name: 'Terminal Oriente - Fuente de la Diana Cazadora',
-        lat: 16.7455,
-        lng: -93.0833,
-        stopOrder: 10,
-        geometry: { type: 'Point', coordinates: [-93.0833, 16.7455] }
-      }
-    ]
-  },
-  {
-    id: 'a0000002-0000-0000-0000-000000000002',
-    name: 'Ruta 2 - Sur / Poniente',
-    description:
-      'Ruta transversal que enlaza el Libramiento Sur Poniente, Mercado de los Ancianos, Parque Central, Calzada de los Hombres Ilustres y la zona norte hacia el Cañón del Sumidero.',
-    color: '#10B981',
     geometry: {
       type: 'LineString',
       coordinates: [
-        [-93.1450, 16.7320],
+        [-93.1720, 16.7310],
+        [-93.1550, 16.7315],
+        [-93.1420, 16.7322],
         [-93.1280, 16.7350],
-        [-93.1125, 16.7410],
-        [-93.1145, 16.7475],
-        [-93.1161, 16.7516],
-        [-93.1120, 16.7600],
-        [-93.1050, 16.7720],
-        [-93.0980, 16.7840]
+        [-93.1180, 16.7375],
+        [-93.1118, 16.7368],
+        [-93.1020, 16.7362],
+        [-93.0890, 16.7385],
+        [-93.0720, 16.7410]
       ]
     },
+    stops: [
+      { id: 'b0000003-0000-0000-0000-000000000001', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Entrada Real del Bosque / Terán Sur', lat: 16.7310, lng: -93.1720, stopOrder: 1, geometry: { type: 'Point', coordinates: [-93.1720, 16.7310] } },
+      { id: 'b0000003-0000-0000-0000-000000000002', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Libramiento Sur y Periférico Pte', lat: 16.7315, lng: -93.1550, stopOrder: 2, geometry: { type: 'Point', coordinates: [-93.1550, 16.7315] } },
+      { id: 'b0000003-0000-0000-0000-000000000003', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Chedraui Sur / Mactumatzá', lat: 16.7322, lng: -93.1420, stopOrder: 3, geometry: { type: 'Point', coordinates: [-93.1420, 16.7322] } },
+      { id: 'b0000003-0000-0000-0000-000000000004', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Paso a Desnivel San José', lat: 16.7350, lng: -93.1280, stopOrder: 4, geometry: { type: 'Point', coordinates: [-93.1280, 16.7350] } },
+      { id: 'b0000003-0000-0000-0000-000000000005', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Crucero Villaflores', lat: 16.7375, lng: -93.1180, stopOrder: 5, geometry: { type: 'Point', coordinates: [-93.1180, 16.7375] } },
+      { id: 'b0000003-0000-0000-0000-000000000006', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Calle Central y Libramiento Sur', lat: 16.7368, lng: -93.1118, stopOrder: 6, geometry: { type: 'Point', coordinates: [-93.1118, 16.7368] } },
+      { id: 'b0000003-0000-0000-0000-000000000007', routeId: 'a0000003-0000-0000-0000-000000000003', name: '11a Oriente y Lib. Sur', lat: 16.7362, lng: -93.1020, stopOrder: 7, geometry: { type: 'Point', coordinates: [-93.1020, 16.7362] } },
+      { id: 'b0000003-0000-0000-0000-000000000008', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Plaza Poliforum / Libramiento', lat: 16.7385, lng: -93.0890, stopOrder: 8, geometry: { type: 'Point', coordinates: [-93.0890, 16.7385] } },
+      { id: 'b0000003-0000-0000-0000-000000000009', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Central de Abastos', lat: 16.7410, lng: -93.0720, stopOrder: 9, geometry: { type: 'Point', coordinates: [-93.0720, 16.7410] } }
+    ]
+  },
+
+  // 4. Ruta 90 - Libramiento Norte (Laguitos - Torre Chiapas)
+  {
+    id: 'a0000004-0000-0000-0000-000000000004',
+    name: 'Ruta 90 - Libramiento Norte (Laguitos - Torre Chiapas)',
+    description: 'Eje perimetral norte interconectando UNICACH Campus Norte, Mirador Los Amorosos, Fiscalía y Torre Chiapas.',
+    color: '#7C3AED',
     scheduleInfo: {
       firstRun: '06:00',
+      lastRun: '21:45',
+      frequencyMinutes: 9,
+      estimatedWaitMinutes: 4,
+      status: 'OPERATIONAL'
+    },
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-93.1590, 16.7685],
+        [-93.1495, 16.7725],
+        [-93.1330, 16.7695],
+        [-93.1155, 16.7680],
+        [-93.0980, 16.7655],
+        [-93.0860, 16.7580],
+        [-93.0880, 16.7470]
+      ]
+    },
+    stops: [
+      { id: 'b0000004-0000-0000-0000-000000000001', routeId: 'a0000004-0000-0000-0000-000000000004', name: 'Reloj Floral / Laguitos', lat: 16.7685, lng: -93.1590, stopOrder: 1, geometry: { type: 'Point', coordinates: [-93.1590, 16.7685] } },
+      { id: 'b0000004-0000-0000-0000-000000000002', routeId: 'a0000004-0000-0000-0000-000000000004', name: 'UNICACH Ciudad Universitaria', lat: 16.7725, lng: -93.1495, stopOrder: 2, geometry: { type: 'Point', coordinates: [-93.1495, 16.7725] } },
+      { id: 'b0000004-0000-0000-0000-000000000003', routeId: 'a0000004-0000-0000-0000-000000000004', name: 'Mirador Los Amorosos', lat: 16.7695, lng: -93.1330, stopOrder: 3, geometry: { type: 'Point', coordinates: [-93.1330, 16.7695] } },
+      { id: 'b0000004-0000-0000-0000-000000000004', routeId: 'a0000004-0000-0000-0000-000000000004', name: 'Libramiento Norte y Calle Central', lat: 16.7680, lng: -93.1155, stopOrder: 4, geometry: { type: 'Point', coordinates: [-93.1155, 16.7680] } },
+      { id: 'b0000004-0000-0000-0000-000000000005', routeId: 'a0000004-0000-0000-0000-000000000004', name: 'Parque del Oriente / Fidel Velázquez', lat: 16.7655, lng: -93.0980, stopOrder: 5, geometry: { type: 'Point', coordinates: [-93.0980, 16.7655] } },
+      { id: 'b0000004-0000-0000-0000-000000000006', routeId: 'a0000004-0000-0000-0000-000000000004', name: 'Fiscalía General', lat: 16.7580, lng: -93.0860, stopOrder: 6, geometry: { type: 'Point', coordinates: [-93.0860, 16.7580] } },
+      { id: 'b0000004-0000-0000-0000-000000000007', routeId: 'a0000004-0000-0000-0000-000000000004', name: 'Torre Chiapas', lat: 16.7470, lng: -93.0880, stopOrder: 7, geometry: { type: 'Point', coordinates: [-93.0880, 16.7470] } }
+    ]
+  },
+
+  // 5. Ruta 58 - UNACH / 5a Norte / San Roque
+  {
+    id: 'a0000005-0000-0000-0000-000000000005',
+    name: 'Ruta 58 - UNACH / 5a Norte / San Roque',
+    description: 'Conecta campus UNACH por la 5a Norte pasando por Parque de la Marimba, Parque Central, San Roque y Mercado de los Ancianos.',
+    color: '#059669',
+    scheduleInfo: {
+      firstRun: '05:30',
+      lastRun: '22:00',
+      frequencyMinutes: 8,
+      estimatedWaitMinutes: 4,
+      status: 'OPERATIONAL'
+    },
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-93.1602, 16.7535],
+        [-93.1485, 16.7630],
+        [-93.1340, 16.7605],
+        [-93.1235, 16.7547],
+        [-93.1168, 16.7562],
+        [-93.1161, 16.7516],
+        [-93.1090, 16.7465],
+        [-93.1125, 16.7410]
+      ]
+    },
+    stops: [
+      { id: 'b0000005-0000-0000-0000-000000000001', routeId: 'a0000005-0000-0000-0000-000000000005', name: 'UNACH Campus I', lat: 16.7535, lng: -93.1602, stopOrder: 1, geometry: { type: 'Point', coordinates: [-93.1602, 16.7535] } },
+      { id: 'b0000005-0000-0000-0000-000000000002', routeId: 'a0000005-0000-0000-0000-000000000005', name: 'Plaza Sol / 5a Norte', lat: 16.7630, lng: -93.1485, stopOrder: 2, geometry: { type: 'Point', coordinates: [-93.1485, 16.7630] } },
+      { id: 'b0000005-0000-0000-0000-000000000003', routeId: 'a0000005-0000-0000-0000-000000000005', name: '5a Norte y 13a Pte', lat: 16.7605, lng: -93.1340, stopOrder: 3, geometry: { type: 'Point', coordinates: [-93.1340, 16.7605] } },
+      { id: 'b0000005-0000-0000-0000-000000000004', routeId: 'a0000005-0000-0000-0000-000000000005', name: 'Parque de la Marimba', lat: 16.7547, lng: -93.1235, stopOrder: 4, geometry: { type: 'Point', coordinates: [-93.1235, 16.7547] } },
+      { id: 'b0000005-0000-0000-0000-000000000005', routeId: 'a0000005-0000-0000-0000-000000000005', name: '5a Norte y Calle Central', lat: 16.7562, lng: -93.1168, stopOrder: 5, geometry: { type: 'Point', coordinates: [-93.1168, 16.7562] } },
+      { id: 'b0000005-0000-0000-0000-000000000006', routeId: 'a0000005-0000-0000-0000-000000000005', name: 'Parque Central', lat: 16.7516, lng: -93.1161, stopOrder: 6, geometry: { type: 'Point', coordinates: [-93.1161, 16.7516] } },
+      { id: 'b0000005-0000-0000-0000-000000000007', routeId: 'a0000005-0000-0000-0000-000000000005', name: 'Barrio San Roque', lat: 16.7465, lng: -93.1090, stopOrder: 7, geometry: { type: 'Point', coordinates: [-93.1090, 16.7465] } },
+      { id: 'b0000005-0000-0000-0000-000000000008', routeId: 'a0000005-0000-0000-0000-000000000005', name: 'Mercado de los Ancianos', lat: 16.7410, lng: -93.1125, stopOrder: 8, geometry: { type: 'Point', coordinates: [-93.1125, 16.7410] } }
+    ]
+  },
+
+  // 6. Ruta 52 - Chapultepec / Caña Hueca / Centro
+  {
+    id: 'a0000006-0000-0000-0000-000000000006',
+    name: 'Ruta 52 - Chapultepec / Caña Hueca / Centro',
+    description: 'Enlaza la Col. Chapultepec, Panteón Jardín y Parque Caña Hueca con el centro comercial y el Mercado Juan Sabines.',
+    color: '#DB2777',
+    scheduleInfo: {
+      firstRun: '05:45',
       lastRun: '21:30',
       frequencyMinutes: 10,
       estimatedWaitMinutes: 5,
       status: 'OPERATIONAL'
     },
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-93.1690, 16.7655],
+        [-93.1585, 16.7635],
+        [-93.1534, 16.7589],
+        [-93.1360, 16.7525],
+        [-93.1215, 16.7538],
+        [-93.1161, 16.7516],
+        [-93.1145, 16.7495],
+        [-93.1060, 16.7425]
+      ]
+    },
     stops: [
-      {
-        id: 'b0000002-0000-0000-0000-000000000001',
-        routeId: 'a0000002-0000-0000-0000-000000000002',
-        name: 'Terminal Sur - Libramiento Sur Poniente',
-        lat: 16.7320,
-        lng: -93.1450,
-        stopOrder: 1,
-        geometry: { type: 'Point', coordinates: [-93.1450, 16.7320] }
-      },
-      {
-        id: 'b0000002-0000-0000-0000-000000000002',
-        routeId: 'a0000002-0000-0000-0000-000000000002',
-        name: 'Paso a Desnivel San José / Libramiento',
-        lat: 16.7350,
-        lng: -93.1280,
-        stopOrder: 2,
-        geometry: { type: 'Point', coordinates: [-93.1280, 16.7350] }
-      },
-      {
-        id: 'b0000002-0000-0000-0000-000000000003',
-        routeId: 'a0000002-0000-0000-0000-000000000002',
-        name: 'Mercado de los Ancianos (9a Sur y Calle Central)',
-        lat: 16.7410,
-        lng: -93.1125,
-        stopOrder: 3,
-        geometry: { type: 'Point', coordinates: [-93.1125, 16.7410] }
-      },
-      {
-        id: 'b0000002-0000-0000-0000-000000000004',
-        routeId: 'a0000002-0000-0000-0000-000000000002',
-        name: 'Calle Central Sur y 4a Sur',
-        lat: 16.7475,
-        lng: -93.1145,
-        stopOrder: 4,
-        geometry: { type: 'Point', coordinates: [-93.1145, 16.7475] }
-      },
-      {
-        id: 'b0000002-0000-0000-0000-000000000005',
-        routeId: 'a0000002-0000-0000-0000-000000000002',
-        name: 'Parque Central / Palacio de Gobierno (Calle Central)',
-        lat: 16.7516,
-        lng: -93.1161,
-        stopOrder: 5,
-        geometry: { type: 'Point', coordinates: [-93.1161, 16.7516] }
-      },
-      {
-        id: 'b0000002-0000-0000-0000-000000000006',
-        routeId: 'a0000002-0000-0000-0000-000000000002',
-        name: 'Teatro de la Ciudad / Calzada Hombres Ilustres',
-        lat: 16.7600,
-        lng: -93.1120,
-        stopOrder: 6,
-        geometry: { type: 'Point', coordinates: [-93.1120, 16.7600] }
-      },
-      {
-        id: 'b0000002-0000-0000-0000-000000000007',
-        routeId: 'a0000002-0000-0000-0000-000000000002',
-        name: 'Distribuidor Vial Norte / Calzada al Sumidero',
-        lat: 16.7720,
-        lng: -93.1050,
-        stopOrder: 7,
-        geometry: { type: 'Point', coordinates: [-93.1050, 16.7720] }
-      },
-      {
-        id: 'b0000002-0000-0000-0000-000000000008',
-        routeId: 'a0000002-0000-0000-0000-000000000002',
-        name: 'Terminal Norte - Albania Alta / Acceso Sumidero',
-        lat: 16.7840,
-        lng: -93.0980,
-        stopOrder: 8,
-        geometry: { type: 'Point', coordinates: [-93.0980, 16.7840] }
-      }
+      { id: 'b0000006-0000-0000-0000-000000000001', routeId: 'a0000006-0000-0000-0000-000000000006', name: 'Col. Chapultepec', lat: 16.7655, lng: -93.1690, stopOrder: 1, geometry: { type: 'Point', coordinates: [-93.1690, 16.7655] } },
+      { id: 'b0000006-0000-0000-0000-000000000002', routeId: 'a0000006-0000-0000-0000-000000000006', name: 'Panteón Jardín / Laguitos', lat: 16.7635, lng: -93.1585, stopOrder: 2, geometry: { type: 'Point', coordinates: [-93.1585, 16.7635] } },
+      { id: 'b0000006-0000-0000-0000-000000000003', routeId: 'a0000006-0000-0000-0000-000000000006', name: 'Parque Caña Hueca', lat: 16.7589, lng: -93.1534, stopOrder: 3, geometry: { type: 'Point', coordinates: [-93.1534, 16.7589] } },
+      { id: 'b0000006-0000-0000-0000-000000000004', routeId: 'a0000006-0000-0000-0000-000000000006', name: '1a Sur Poniente', lat: 16.7525, lng: -93.1360, stopOrder: 4, geometry: { type: 'Point', coordinates: [-93.1360, 16.7525] } },
+      { id: 'b0000006-0000-0000-0000-000000000005', routeId: 'a0000006-0000-0000-0000-000000000006', name: 'Parque Bicentenario', lat: 16.7538, lng: -93.1215, stopOrder: 5, geometry: { type: 'Point', coordinates: [-93.1215, 16.7538] } },
+      { id: 'b0000006-0000-0000-0000-000000000006', routeId: 'a0000006-0000-0000-0000-000000000006', name: 'Parque Central', lat: 16.7516, lng: -93.1161, stopOrder: 6, geometry: { type: 'Point', coordinates: [-93.1161, 16.7516] } },
+      { id: 'b0000006-0000-0000-0000-000000000007', routeId: 'a0000006-0000-0000-0000-000000000006', name: 'Mercado Juan Sabines', lat: 16.7495, lng: -93.1145, stopOrder: 7, geometry: { type: 'Point', coordinates: [-93.1145, 16.7495] } },
+      { id: 'b0000006-0000-0000-0000-000000000008', routeId: 'a0000006-0000-0000-0000-000000000006', name: '9a Sur Oriente', lat: 16.7425, lng: -93.1060, stopOrder: 8, geometry: { type: 'Point', coordinates: [-93.1060, 16.7425] } }
+    ]
+  },
+
+  // 7. Ruta 30 - Calle Central / Las Granjas / Sumidero
+  {
+    id: 'a0000007-0000-0000-0000-000000000007',
+    name: 'Ruta 30 - Calle Central / Las Granjas / Sumidero',
+    description: 'Eje vertical que conecta el Libramiento Sur, Mercado de los Ancianos, Centro, Teatro de la Ciudad y el Cañón del Sumidero.',
+    color: '#0891B2',
+    scheduleInfo: {
+      firstRun: '05:30',
+      lastRun: '22:00',
+      frequencyMinutes: 8,
+      estimatedWaitMinutes: 4,
+      status: 'OPERATIONAL'
+    },
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-93.1118, 16.7368],
+        [-93.1125, 16.7410],
+        [-93.1145, 16.7475],
+        [-93.1161, 16.7516],
+        [-93.1168, 16.7562],
+        [-93.1120, 16.7600],
+        [-93.1050, 16.7720],
+        [-93.0980, 16.7840]
+      ]
+    },
+    stops: [
+      { id: 'b0000007-0000-0000-0000-000000000001', routeId: 'a0000007-0000-0000-0000-000000000007', name: 'Calle Central y Libramiento Sur', lat: 16.7368, lng: -93.1118, stopOrder: 1, geometry: { type: 'Point', coordinates: [-93.1118, 16.7368] } },
+      { id: 'b0000007-0000-0000-0000-000000000002', routeId: 'a0000007-0000-0000-0000-000000000007', name: 'Mercado de los Ancianos', lat: 16.7410, lng: -93.1125, stopOrder: 2, geometry: { type: 'Point', coordinates: [-93.1125, 16.7410] } },
+      { id: 'b0000007-0000-0000-0000-000000000003', routeId: 'a0000007-0000-0000-0000-000000000007', name: '4a Sur y Calle Central', lat: 16.7475, lng: -93.1145, stopOrder: 3, geometry: { type: 'Point', coordinates: [-93.1145, 16.7475] } },
+      { id: 'b0000007-0000-0000-0000-000000000004', routeId: 'a0000007-0000-0000-0000-000000000007', name: 'Parque Central', lat: 16.7516, lng: -93.1161, stopOrder: 4, geometry: { type: 'Point', coordinates: [-93.1161, 16.7516] } },
+      { id: 'b0000007-0000-0000-0000-000000000005', routeId: 'a0000007-0000-0000-0000-000000000007', name: '5a Norte y Calle Central', lat: 16.7562, lng: -93.1168, stopOrder: 5, geometry: { type: 'Point', coordinates: [-93.1168, 16.7562] } },
+      { id: 'b0000007-0000-0000-0000-000000000006', routeId: 'a0000007-0000-0000-0000-000000000007', name: 'Teatro de la Ciudad', lat: 16.7600, lng: -93.1120, stopOrder: 6, geometry: { type: 'Point', coordinates: [-93.1120, 16.7600] } },
+      { id: 'b0000007-0000-0000-0000-000000000007', routeId: 'a0000007-0000-0000-0000-000000000007', name: 'Distribuidor Vial Norte', lat: 16.7720, lng: -93.1050, stopOrder: 7, geometry: { type: 'Point', coordinates: [-93.1050, 16.7720] } },
+      { id: 'b0000007-0000-0000-0000-000000000008', routeId: 'a0000007-0000-0000-0000-000000000007', name: 'Terminal Albania Alta / Las Granjas', lat: 16.7840, lng: -93.0980, stopOrder: 8, geometry: { type: 'Point', coordinates: [-93.0980, 16.7840] } }
+    ]
+  },
+
+  // 8. Ruta 73 - Ingeniería UNACH / ISSSTE / Centro
+  {
+    id: 'a0000008-0000-0000-0000-000000000008',
+    name: 'Ruta 73 - Ingeniería UNACH / ISSSTE / Centro',
+    description: 'Enlaza la Facultad de Ingeniería de la UNACH, Hospital ISSSTE Belisario Domínguez y Parque de la Marimba con el Mercado Díaz Ordaz.',
+    color: '#4F46E5',
+    scheduleInfo: {
+      firstRun: '05:45',
+      lastRun: '22:00',
+      frequencyMinutes: 9,
+      estimatedWaitMinutes: 4,
+      status: 'OPERATIONAL'
+    },
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-93.1640, 16.7660],
+        [-93.1560, 16.7555],
+        [-93.1460, 16.7570],
+        [-93.1235, 16.7547],
+        [-93.1200, 16.7530],
+        [-93.1161, 16.7516],
+        [-93.1110, 16.7505],
+        [-93.1065, 16.7495]
+      ]
+    },
+    stops: [
+      { id: 'b0000008-0000-0000-0000-000000000001', routeId: 'a0000008-0000-0000-0000-000000000008', name: 'Blvd. Laguitos Poniente', lat: 16.7660, lng: -93.1640, stopOrder: 1, geometry: { type: 'Point', coordinates: [-93.1640, 16.7660] } },
+      { id: 'b0000008-0000-0000-0000-000000000002', routeId: 'a0000008-0000-0000-0000-000000000008', name: 'Facultad de Ingeniería UNACH', lat: 16.7555, lng: -93.1560, stopOrder: 2, geometry: { type: 'Point', coordinates: [-93.1560, 16.7555] } },
+      { id: 'b0000008-0000-0000-0000-000000000003', routeId: 'a0000008-0000-0000-0000-000000000008', name: 'Hospital ISSSTE Belisario', lat: 16.7570, lng: -93.1460, stopOrder: 3, geometry: { type: 'Point', coordinates: [-93.1460, 16.7570] } },
+      { id: 'b0000008-0000-0000-0000-000000000004', routeId: 'a0000008-0000-0000-0000-000000000008', name: 'Parque de la Marimba', lat: 16.7547, lng: -93.1235, stopOrder: 4, geometry: { type: 'Point', coordinates: [-93.1235, 16.7547] } },
+      { id: 'b0000008-0000-0000-0000-000000000005', routeId: 'a0000008-0000-0000-0000-000000000008', name: 'Av. Central y 2a Pte', lat: 16.7530, lng: -93.1200, stopOrder: 5, geometry: { type: 'Point', coordinates: [-93.1200, 16.7530] } },
+      { id: 'b0000008-0000-0000-0000-000000000006', routeId: 'a0000008-0000-0000-0000-000000000008', name: 'Parque Central', lat: 16.7516, lng: -93.1161, stopOrder: 6, geometry: { type: 'Point', coordinates: [-93.1161, 16.7516] } },
+      { id: 'b0000008-0000-0000-0000-000000000007', routeId: 'a0000008-0000-0000-0000-000000000008', name: 'Mercado Díaz Ordaz', lat: 16.7505, lng: -93.1110, stopOrder: 7, geometry: { type: 'Point', coordinates: [-93.1110, 16.7505] } },
+      { id: 'b0000008-0000-0000-0000-000000000008', routeId: 'a0000008-0000-0000-0000-000000000008', name: 'Parque 5 de Mayo', lat: 16.7495, lng: -93.1065, stopOrder: 8, geometry: { type: 'Point', coordinates: [-93.1065, 16.7495] } }
     ]
   }
 ];
 
-// Pasos de animación simulada en memoria para modo demo
-let demoStep1 = 4;
-let demoStep2 = 4;
+// Estado cinemático en memoria para modo offline/demo (12 unidades)
+const DEMO_UNITS_STATE = [
+  { unitId: 'TX-01A', routeId: 'a0000001-0000-0000-0000-000000000001', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.35, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 31 },
+  { unitId: 'TX-01B', routeId: 'a0000001-0000-0000-0000-000000000001', currentStopIndex: 9, nextStopIndex: 8, direction: -1, progress: 0.60, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 29 },
+  { unitId: 'TX-A01', routeId: 'a0000002-0000-0000-0000-000000000002', currentStopIndex: 1, nextStopIndex: 2, direction: 1, progress: 0.20, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 32 },
+  { unitId: 'TX-A02', routeId: 'a0000002-0000-0000-0000-000000000002', currentStopIndex: 7, nextStopIndex: 6, direction: -1, progress: 0.45, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 30 },
+  { unitId: 'TX-43A', routeId: 'a0000003-0000-0000-0000-000000000003', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.50, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 34 },
+  { unitId: 'TX-43B', routeId: 'a0000003-0000-0000-0000-000000000003', currentStopIndex: 6, nextStopIndex: 5, direction: -1, progress: 0.25, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 28 },
+  { unitId: 'TX-90A', routeId: 'a0000004-0000-0000-0000-000000000004', currentStopIndex: 1, nextStopIndex: 2, direction: 1, progress: 0.40, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 33 },
+  { unitId: 'TX-58A', routeId: 'a0000005-0000-0000-0000-000000000005', currentStopIndex: 3, nextStopIndex: 4, direction: 1, progress: 0.15, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 30 },
+  { unitId: 'TX-58B', routeId: 'a0000005-0000-0000-0000-000000000005', currentStopIndex: 6, nextStopIndex: 5, direction: -1, progress: 0.70, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 31 },
+  { unitId: 'TX-52A', routeId: 'a0000006-0000-0000-0000-000000000006', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.30, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 29 },
+  { unitId: 'TX-30A', routeId: 'a0000007-0000-0000-0000-000000000007', currentStopIndex: 3, nextStopIndex: 4, direction: 1, progress: 0.55, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 32 },
+  { unitId: 'TX-73A', routeId: 'a0000008-0000-0000-0000-000000000008', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.40, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 30 }
+];
+
+let lastSimTime = Date.now();
+
+function advanceDemoKinematics() {
+  const now = Date.now();
+  const dt = Math.min(3, Math.max(0.2, (now - lastSimTime) / 1000));
+  lastSimTime = now;
+
+  return DEMO_UNITS_STATE.map((u) => {
+    const route = BACKUP_ROUTES.find((r) => r.id === u.routeId);
+    if (!route || !route.stops || route.stops.length < 2) return u;
+
+    const stops = route.stops;
+
+    if (u.status === 'BOARDING') {
+      u.dwellRemainingSec = Math.max(0, (u.dwellRemainingSec || 15) - dt);
+      u.speedKmh = 0;
+      if (u.dwellRemainingSec <= 0) {
+        u.status = 'IN_TRANSIT';
+        u.dwellRemainingSec = 0;
+        u.speedKmh = Math.floor(Math.random() * 7) + 28;
+        u.progress = 0;
+        u.currentStopIndex = u.nextStopIndex;
+        let proposed = u.currentStopIndex + u.direction;
+        if (proposed >= stops.length) {
+          u.direction = -1;
+          proposed = u.currentStopIndex - 1;
+        } else if (proposed < 0) {
+          u.direction = 1;
+          proposed = u.currentStopIndex + 1;
+        }
+        u.nextStopIndex = proposed;
+      }
+      const currentStop = stops[u.currentStopIndex] || stops[0];
+      const nextStop = stops[u.nextStopIndex] || stops[1];
+      return {
+        ...u,
+        lat: currentStop.lat,
+        lng: currentStop.lng,
+        routeName: route.name,
+        routeColor: route.color,
+        currentStopName: currentStop.name,
+        nextStopName: nextStop.name,
+        locationName: currentStop.name,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const fromStop = stops[u.currentStopIndex] || stops[0];
+    const toStop = stops[u.nextStopIndex] || stops[1];
+
+    const dist = Math.max(100, calculateHaversineDistance(fromStop.lat, fromStop.lng, toStop.lat, toStop.lng));
+    const speedKmh = u.speedKmh || (Math.floor(Math.random() * 7) + 28);
+    const speedMps = (speedKmh * 1000) / 3600;
+    u.progress = (u.progress || 0) + (speedMps * dt) / dist;
+
+    if (u.progress >= 1.0) {
+      u.progress = 1.0;
+      u.status = 'BOARDING';
+      u.dwellRemainingSec = 15;
+      u.speedKmh = 0;
+      u.lat = toStop.lat;
+      u.lng = toStop.lng;
+      let nextAfter = u.nextStopIndex + u.direction;
+      if (nextAfter >= stops.length) {
+        u.direction = -1;
+        nextAfter = u.nextStopIndex - 1;
+      } else if (nextAfter < 0) {
+        u.direction = 1;
+        nextAfter = u.nextStopIndex + 1;
+      }
+      return {
+        ...u,
+        lat: toStop.lat,
+        lng: toStop.lng,
+        routeName: route.name,
+        routeColor: route.color,
+        currentStopName: toStop.name,
+        nextStopName: stops[nextAfter]?.name || toStop.name,
+        locationName: toStop.name,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const lat = fromStop.lat + (toStop.lat - fromStop.lat) * u.progress;
+    const lng = fromStop.lng + (toStop.lng - fromStop.lng) * u.progress;
+
+    return {
+      ...u,
+      lat,
+      lng,
+      routeName: route.name,
+      routeColor: route.color,
+      currentStopName: fromStop.name,
+      nextStopName: toStop.name,
+      locationName: `Hacia ${toStop.name}`,
+      timestamp: new Date().toISOString()
+    };
+  });
+}
 
 export const apiClient = {
   /**
-   * Obtiene la lista completa de rutas con su trazado y paradas
+   * Obtiene la lista completa de las 8 rutas con su trazado y paradas
    */
   async fetchRoutes() {
     try {
@@ -276,7 +483,7 @@ export const apiClient = {
         isDemoMode: false
       };
     } catch (err) {
-      console.warn('[Tuxtla-Rutas API] Backend no disponible. Activando modo Demo / Offline:', err.message);
+      console.warn('[Tuxtla-Rutas API] Backend no disponible. Activando catálogo de respaldo en memoria:', err.message);
       return {
         success: true,
         data: BACKUP_ROUTES,
@@ -377,7 +584,7 @@ export const apiClient = {
   },
 
   /**
-   * Obtiene la telemetría en tiempo real de las unidades colectivas
+   * Obtiene la telemetría en tiempo real de las 12 unidades colectivas
    */
   async fetchTelemetry() {
     try {
@@ -400,35 +607,8 @@ export const apiClient = {
       }
       throw new Error('Sin datos en backend');
     } catch (err) {
-      // Fallback simulado en modo demo: avanza las combis por sus waypoints
-      demoStep1 = (demoStep1 + 1) % BACKUP_ROUTES[0].geometry.coordinates.length;
-      demoStep2 = (demoStep2 + 1) % BACKUP_ROUTES[1].geometry.coordinates.length;
-
-      const p1 = BACKUP_ROUTES[0].geometry.coordinates[demoStep1];
-      const p2 = BACKUP_ROUTES[1].geometry.coordinates[demoStep2];
-
-      const simulatedUnits = [
-        {
-          unitId: 'TX-101',
-          routeId: 'a0000001-0000-0000-0000-000000000001',
-          routeName: 'Ruta 1 - Centro / Terán',
-          routeColor: '#2563EB',
-          lat: p1[1],
-          lng: p1[0],
-          speedKmh: Math.floor(Math.random() * 12) + 26,
-          timestamp: new Date().toISOString()
-        },
-        {
-          unitId: 'TX-204',
-          routeId: 'a0000002-0000-0000-0000-000000000002',
-          routeName: 'Ruta 2 - Sur / Poniente',
-          routeColor: '#10B981',
-          lat: p2[1],
-          lng: p2[0],
-          speedKmh: Math.floor(Math.random() * 10) + 22,
-          timestamp: new Date().toISOString()
-        }
-      ];
+      // Fallback simulado cinematográfico LERP de las 12 unidades con parada de 15s
+      const simulatedUnits = advanceDemoKinematics();
 
       return {
         success: true,

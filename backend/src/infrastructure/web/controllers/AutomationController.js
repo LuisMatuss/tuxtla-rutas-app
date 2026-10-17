@@ -1,28 +1,23 @@
 // Adaptador Primario (HTTP Controller): Integraciones de Automatización, Webhooks y Telemetría IoT
 // Conecta casos de uso de la capa de aplicación con n8n, Telegram Bot y Node-RED
+// Incluye motor cinemático de movimiento continuo realista (LERP + 15s parada subiendo pasaje)
 
-const RUTA_1_WAYPOINTS = [
-  { lat: 16.7450, lng: -93.1685, name: 'Terán (Terminal Poniente)' },
-  { lat: 16.7535, lng: -93.1602, name: 'UNACH Campus I' },
-  { lat: 16.7589, lng: -93.1534, name: 'Plaza Cristal / Caña Hueca' },
-  { lat: 16.7565, lng: -93.1410, name: 'Rectoría UNICACH' },
-  { lat: 16.7547, lng: -93.1235, name: 'Parque de la Marimba' },
-  { lat: 16.7538, lng: -93.1215, name: 'Parque Bicentenario' },
-  { lat: 16.7516, lng: -93.1161, name: 'Parque Central Tuxtla' },
-  { lat: 16.7495, lng: -93.1065, name: 'Parque 5 de Mayo' },
-  { lat: 16.7470, lng: -93.0880, name: 'Polyforum Chiapas' },
-  { lat: 16.7455, lng: -93.0833, name: 'Fuente Diana Cazadora' }
-];
+import { TUXTLA_ROUTES_SEED, calculateHaversineDistance } from '../../db/tuxtlaRoutesSeed.js';
 
-const RUTA_2_WAYPOINTS = [
-  { lat: 16.7320, lng: -93.1450, name: 'Terminal Libramiento Sur Pte' },
-  { lat: 16.7350, lng: -93.1280, name: 'Paso a Desnivel San José' },
-  { lat: 16.7410, lng: -93.1125, name: 'Mercado de los Ancianos' },
-  { lat: 16.7475, lng: -93.1145, name: 'Calle Central Sur y 4a Sur' },
-  { lat: 16.7516, lng: -93.1161, name: 'Parque Central' },
-  { lat: 16.7600, lng: -93.1120, name: 'Teatro de la Ciudad' },
-  { lat: 16.7720, lng: -93.1050, name: 'Distribuidor Vial Sumidero' },
-  { lat: 16.7840, lng: -93.0980, name: 'Albania Alta / Cañón del Sumidero' }
+// Semilla de las 12 Unidades Colectivas Activas distribuidas en las 8 rutas
+const SEED_ACTIVE_UNITS = [
+  { unitId: 'TX-01A', routeId: 'a0000001-0000-0000-0000-000000000001', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.35, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 31 },
+  { unitId: 'TX-01B', routeId: 'a0000001-0000-0000-0000-000000000001', currentStopIndex: 9, nextStopIndex: 8, direction: -1, progress: 0.60, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 29 },
+  { unitId: 'TX-A01', routeId: 'a0000002-0000-0000-0000-000000000002', currentStopIndex: 1, nextStopIndex: 2, direction: 1, progress: 0.20, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 32 },
+  { unitId: 'TX-A02', routeId: 'a0000002-0000-0000-0000-000000000002', currentStopIndex: 7, nextStopIndex: 6, direction: -1, progress: 0.45, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 30 },
+  { unitId: 'TX-43A', routeId: 'a0000003-0000-0000-0000-000000000003', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.50, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 34 },
+  { unitId: 'TX-43B', routeId: 'a0000003-0000-0000-0000-000000000003', currentStopIndex: 6, nextStopIndex: 5, direction: -1, progress: 0.25, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 28 },
+  { unitId: 'TX-90A', routeId: 'a0000004-0000-0000-0000-000000000004', currentStopIndex: 1, nextStopIndex: 2, direction: 1, progress: 0.40, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 33 },
+  { unitId: 'TX-58A', routeId: 'a0000005-0000-0000-0000-000000000005', currentStopIndex: 3, nextStopIndex: 4, direction: 1, progress: 0.15, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 30 },
+  { unitId: 'TX-58B', routeId: 'a0000005-0000-0000-0000-000000000005', currentStopIndex: 6, nextStopIndex: 5, direction: -1, progress: 0.70, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 31 },
+  { unitId: 'TX-52A', routeId: 'a0000006-0000-0000-0000-000000000006', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.30, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 29 },
+  { unitId: 'TX-30A', routeId: 'a0000007-0000-0000-0000-000000000007', currentStopIndex: 3, nextStopIndex: 4, direction: 1, progress: 0.55, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 32 },
+  { unitId: 'TX-73A', routeId: 'a0000008-0000-0000-0000-000000000008', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.40, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 30 }
 ];
 
 export class AutomationController {
@@ -41,83 +36,159 @@ export class AutomationController {
     // Almacén en memoria para telemetría GPS en tiempo real de unidades colectivas
     this.telemetryStore = new Map();
 
-    // Semilla inicial de telemetría: 2 unidades activas por defecto
-    this.initDefaultTelemetry();
+    // Rutas indexadas por ID para resolución ultra-rápida de paradas
+    this.routesMap = new Map(TUXTLA_ROUTES_SEED.map((r) => [r.id, r]));
 
-    // Iniciar ciclo de simulación interna para actualizar coordenadas en tiempo real
+    // Inicializar estado cinemático de las 12 unidades activas
+    this.initKinematicUnits();
+
+    // Iniciar bucle de simulación cinemática (actualización cada 1 segundo)
     if (process.env.NODE_ENV !== 'test') {
-      this.startInternalSimulation();
+      this.startKinematicSimulation();
     }
   }
 
   /**
-   * Inicializa la semilla con dos unidades activas en Tuxtla Gutiérrez
+   * Inicializa las 12 unidades colectivas en sus posiciones geodésicas iniciales
    */
-  initDefaultTelemetry() {
-    this.telemetryStore.set('TX-101', {
-      unitId: 'TX-101',
-      routeId: 'a0000001-0000-0000-0000-000000000001',
-      routeName: 'Ruta 1 - Centro / Terán',
-      routeColor: '#2563EB',
-      lat: 16.7547,
-      lng: -93.1235,
-      locationName: 'Parque de la Marimba',
-      speedKmh: 32,
-      timestamp: new Date().toISOString()
-    });
+  initKinematicUnits() {
+    for (const seed of SEED_ACTIVE_UNITS) {
+      const route = this.routesMap.get(seed.routeId);
+      if (!route || !route.stops || route.stops.length === 0) continue;
 
-    this.telemetryStore.set('TX-204', {
-      unitId: 'TX-204',
-      routeId: 'a0000002-0000-0000-0000-000000000002',
-      routeName: 'Ruta 2 - Sur / Poniente',
-      routeColor: '#10B981',
-      lat: 16.7516,
-      lng: -93.1161,
-      locationName: 'Parque Central Tuxtla',
-      speedKmh: 28,
-      timestamp: new Date().toISOString()
-    });
+      const fromStop = route.stops[seed.currentStopIndex] || route.stops[0];
+      const toStop = route.stops[seed.nextStopIndex] || route.stops[1] || route.stops[0];
+
+      // Interpolación lineal LERP inicial
+      const lat = fromStop.lat + (toStop.lat - fromStop.lat) * seed.progress;
+      const lng = fromStop.lng + (toStop.lng - fromStop.lng) * seed.progress;
+
+      this.telemetryStore.set(seed.unitId, {
+        unitId: seed.unitId,
+        routeId: route.id,
+        routeName: route.name,
+        routeColor: route.color,
+        lat,
+        lng,
+        speedKmh: seed.speedKmh,
+        status: seed.status,
+        dwellRemainingSec: seed.dwellRemainingSec,
+        currentStopIndex: seed.currentStopIndex,
+        nextStopIndex: seed.nextStopIndex,
+        currentStopName: fromStop.name,
+        nextStopName: toStop.name,
+        direction: seed.direction,
+        progress: seed.progress,
+        locationName: `Hacia ${toStop.name}`,
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 
   /**
-   * Simulador interno que itera sobre los waypoints de Tuxtla cada 5 segundos
+   * Motor cinemático de movimiento continuo realista
+   * - Cada unidad avanza a una velocidad de 28 a 34 km/h (~8.5 m/s)
+   * - Al llegar a una parada (progress >= 1.0), se detiene exactamente 15 segundos subiendo pasaje
+   * - Al completar los 15s, reanuda el viaje hacia la siguiente parada invirtiendo sentido en los extremos
    */
-  startInternalSimulation() {
+  startKinematicSimulation() {
     if (this.simulationInterval) return;
-    let idx1 = 4; // Parque de la Marimba
-    let idx2 = 4; // Parque Central
+
+    const TICK_SECONDS = 1.0;
 
     this.simulationInterval = setInterval(() => {
-      idx1 = (idx1 + 1) % RUTA_1_WAYPOINTS.length;
-      idx2 = (idx2 + 1) % RUTA_2_WAYPOINTS.length;
+      const nowIso = new Date().toISOString();
 
-      const p1 = RUTA_1_WAYPOINTS[idx1];
-      const p2 = RUTA_2_WAYPOINTS[idx2];
+      for (const [unitId, unit] of this.telemetryStore.entries()) {
+        const route = this.routesMap.get(unit.routeId);
+        if (!route || !route.stops || route.stops.length < 2) continue;
 
-      this.telemetryStore.set('TX-101', {
-        unitId: 'TX-101',
-        routeId: 'a0000001-0000-0000-0000-000000000001',
-        routeName: 'Ruta 1 - Centro / Terán',
-        routeColor: '#2563EB',
-        lat: p1.lat,
-        lng: p1.lng,
-        locationName: p1.name,
-        speedKmh: Math.floor(Math.random() * 12) + 26,
-        timestamp: new Date().toISOString()
-      });
+        const stops = route.stops;
 
-      this.telemetryStore.set('TX-204', {
-        unitId: 'TX-204',
-        routeId: 'a0000002-0000-0000-0000-000000000002',
-        routeName: 'Ruta 2 - Sur / Poniente',
-        routeColor: '#10B981',
-        lat: p2.lat,
-        lng: p2.lng,
-        locationName: p2.name,
-        speedKmh: Math.floor(Math.random() * 10) + 22,
-        timestamp: new Date().toISOString()
-      });
-    }, 5000);
+        // ESTADO 1: La combi está detenida subiendo pasaje (15 segundos)
+        if (unit.status === 'BOARDING') {
+          unit.dwellRemainingSec = Math.max(0, (unit.dwellRemainingSec || 15) - TICK_SECONDS);
+          unit.speedKmh = 0;
+          unit.timestamp = nowIso;
+
+          if (unit.dwellRemainingSec <= 0) {
+            // Fin del tiempo de ascenso de pasaje: Reanuda marcha hacia siguiente parada
+            unit.status = 'IN_TRANSIT';
+            unit.dwellRemainingSec = 0;
+            unit.speedKmh = Math.floor(Math.random() * 7) + 28; // 28 - 34 km/h
+            unit.progress = 0;
+
+            // Avanzar índices
+            unit.currentStopIndex = unit.nextStopIndex;
+            let proposedNext = unit.currentStopIndex + unit.direction;
+
+            if (proposedNext >= stops.length) {
+              unit.direction = -1;
+              proposedNext = unit.currentStopIndex - 1;
+            } else if (proposedNext < 0) {
+              unit.direction = 1;
+              proposedNext = unit.currentStopIndex + 1;
+            }
+
+            unit.nextStopIndex = proposedNext;
+            const fromStop = stops[unit.currentStopIndex];
+            const toStop = stops[unit.nextStopIndex];
+            unit.currentStopName = fromStop.name;
+            unit.nextStopName = toStop.name;
+            unit.locationName = `Hacia ${toStop.name}`;
+          }
+          continue;
+        }
+
+        // ESTADO 2: La combi está en tránsito entre paradas con LERP continuo
+        const fromStop = stops[unit.currentStopIndex] || stops[0];
+        const toStop = stops[unit.nextStopIndex] || stops[stops.length - 1];
+
+        const segmentDistanceMeters = Math.max(
+          100,
+          calculateHaversineDistance(fromStop.lat, fromStop.lng, toStop.lat, toStop.lng)
+        );
+
+        // Velocidad realista entre 28 y 34 km/h (~7.8 a 9.4 m/s)
+        const speedKmh = Math.floor(Math.random() * 7) + 28;
+        unit.speedKmh = speedKmh;
+        const speedMps = (speedKmh * 1000) / 3600;
+
+        // Avance de progreso en este tick
+        const progressIncrement = (speedMps * TICK_SECONDS) / segmentDistanceMeters;
+        unit.progress = (unit.progress || 0) + progressIncrement;
+
+        if (unit.progress >= 1.0) {
+          // Ha arribado a la parada: Entra en parada de 15 segundos subiendo pasaje
+          unit.progress = 1.0;
+          unit.status = 'BOARDING';
+          unit.dwellRemainingSec = 15;
+          unit.speedKmh = 0;
+          unit.lat = toStop.lat;
+          unit.lng = toStop.lng;
+          unit.currentStopName = toStop.name;
+          unit.locationName = `Parada: ${toStop.name} (Subiendo pasaje)`;
+
+          // Calcular la siguiente parada para cuando reanude marcha
+          let nextAfter = unit.nextStopIndex + unit.direction;
+          if (nextAfter >= stops.length) {
+            unit.direction = -1;
+            nextAfter = unit.nextStopIndex - 1;
+          } else if (nextAfter < 0) {
+            unit.direction = 1;
+            nextAfter = unit.nextStopIndex + 1;
+          }
+          unit.nextStopName = stops[nextAfter]?.name || toStop.name;
+        } else {
+          // Interpolación lineal LERP suave entre fromStop y toStop
+          unit.lat = fromStop.lat + (toStop.lat - fromStop.lat) * unit.progress;
+          unit.lng = fromStop.lng + (toStop.lng - fromStop.lng) * unit.progress;
+          unit.locationName = `En ruta hacia ${toStop.name}`;
+        }
+
+        unit.timestamp = nowIso;
+      }
+    }, 1000);
 
     if (this.simulationInterval.unref) {
       this.simulationInterval.unref();
@@ -150,7 +221,7 @@ export class AutomationController {
           '',
           '📍 Para indicarte las paradas y colectivos más cercanos, por favor comparte tu ubicación mediante el clip de adjuntos en Telegram (*Ubicación en tiempo real* o *Ubicación actual*).',
           '',
-          '💡 También puedes consultar el mapa interactivo de Tuxtla Gutiérrez en tiempo real.'
+          '💡 También puedes consultar el mapa interactivo con las 8 rutas de Tuxtla Gutiérrez en tiempo real.'
         ].join('\n');
 
         return res.status(200).json({
@@ -181,7 +252,7 @@ export class AutomationController {
           '',
           `Hola ${userName}, no encontramos paradas registradas en un radio de 1.5 km de tus coordenadas (${lat.toFixed(4)}, ${lng.toFixed(4)}).`,
           '',
-          `💡 *Sugerencia:* Las rutas troncales circulan sobre el Blvd. Belisario Domínguez, Av. Central, Libramiento Sur y Calzada al Sumidero.`
+          `💡 *Sugerencia:* Las 8 rutas troncales cubren el Blvd. Belisario Domínguez, Av. Central, Libramiento Sur, Libramiento Norte y Calle Central.`
         ].join('\n');
       } else {
         const lines = [
@@ -203,7 +274,7 @@ export class AutomationController {
           lines.push('');
         });
 
-        lines.push(`ℹ️ _Horario de servicio: 05:30 a 22:00 hrs. Frecuencia habitual: cada 8 a 10 min._`);
+        lines.push(`ℹ️ _Servicio activo: 05:30 a 22:30 hrs. Frecuencia estimada: cada 6 a 10 min._`);
         markdown = lines.join('\n');
       }
 
@@ -223,13 +294,27 @@ export class AutomationController {
 
   /**
    * POST /api/automation/telemetry
-   * Receptor de telemetría IoT desde Node-RED u otros dispositivos
+   * Receptor de telemetría IoT desde Node-RED u otros dispositivos GPS
    */
   recordTelemetry = async (req, res, next) => {
     try {
-      const { unitId, routeId, routeName, routeColor, lat, lng, latitude, longitude, speedKmh, speed, timestamp } = req.body || {};
+      const {
+        unitId,
+        routeId,
+        routeName,
+        routeColor,
+        lat,
+        lng,
+        latitude,
+        longitude,
+        speedKmh,
+        speed,
+        status,
+        dwellRemainingSec,
+        timestamp
+      } = req.body || {};
 
-      const finalUnitId = unitId || 'COLECTIVO-042';
+      const finalUnitId = unitId || 'TX-CUSTOM';
       const finalLat = lat !== undefined ? Number(lat) : Number(latitude);
       const finalLng = lng !== undefined ? Number(lng) : Number(longitude);
       const finalSpeed =
@@ -237,7 +322,7 @@ export class AutomationController {
           ? Number(speedKmh)
           : speed !== undefined
           ? Number(speed)
-          : 25;
+          : 30;
       const finalTimestamp = timestamp || new Date().toISOString();
 
       if (!Number.isFinite(finalLat) || !Number.isFinite(finalLng)) {
@@ -250,14 +335,18 @@ export class AutomationController {
         });
       }
 
+      const existing = this.telemetryStore.get(finalUnitId) || {};
+
       const telemetryRecord = {
         unitId: finalUnitId,
-        routeId: routeId || 'a0000001-0000-0000-0000-000000000001',
-        routeName: routeName || (finalUnitId.includes('101') ? 'Ruta 1 - Centro / Terán' : 'Ruta 2 - Sur / Poniente'),
-        routeColor: routeColor || (finalUnitId.includes('101') ? '#2563EB' : '#10B981'),
+        routeId: routeId || existing.routeId || 'a0000001-0000-0000-0000-000000000001',
+        routeName: routeName || existing.routeName || 'Ruta 1 - Av. Central / UNACH / Terán',
+        routeColor: routeColor || existing.routeColor || '#2563EB',
         lat: finalLat,
         lng: finalLng,
         speedKmh: finalSpeed,
+        status: status || existing.status || (finalSpeed === 0 ? 'BOARDING' : 'IN_TRANSIT'),
+        dwellRemainingSec: dwellRemainingSec !== undefined ? Number(dwellRemainingSec) : (existing.dwellRemainingSec || 0),
         timestamp: finalTimestamp,
         receivedAt: new Date().toISOString()
       };
@@ -276,7 +365,7 @@ export class AutomationController {
 
   /**
    * GET /api/automation/telemetry
-   * Consulta el estado de telemetría en tiempo real de todas las unidades
+   * Consulta el estado de telemetría cinemática en tiempo real de todas las unidades
    */
   getTelemetry = async (req, res, next) => {
     try {
