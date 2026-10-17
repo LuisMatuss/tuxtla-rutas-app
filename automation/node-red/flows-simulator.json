@@ -1,52 +1,95 @@
-// Flujo simulador de telemetría y emisión periódica de coordenadas GPS para Tuxtla-Rutas
 [
   {
-    "id": "tab-simulator",
+    "id": "tab-tuxtla-gps-simulator",
     "type": "tab",
-    "label": "Simulador GPS Tuxtla",
+    "label": "Simulador GPS Colectivos Tuxtla",
     "disabled": false,
-    "info": "Generador de coordenadas simuladas para unidades de transporte en Tuxtla Gutiérrez"
+    "info": "Generador de telemetría IoT periódico para unidades de transporte colectivo en Tuxtla Gutiérrez"
   },
   {
-    "id": "node-inject-gps",
+    "id": "node-inject-trigger",
     "type": "inject",
-    "z": "tab-simulator",
-    "name": "Generador GPS cada 5 seg",
+    "z": "tab-tuxtla-gps-simulator",
+    "name": "Ciclo Telemetría cada 10s",
     "props": [
       {
         "p": "payload"
       }
     ],
-    "repeat": "5",
+    "repeat": "10",
     "crontab": "",
     "once": true,
-    "onceDelay": 0.1,
+    "onceDelay": 0.5,
     "topic": "telemetria/tuxtla/unidades",
-    "payload": "{\"unitId\":\"COLECTIVO-042\",\"routeCode\":\"RUTA-01\",\"latitude\":16.7528,\"longitude\":-93.1158,\"speed\":28,\"timestamp\":\"2026-10-15T00:00:00Z\"}",
-    "payloadType": "json",
-    "x": 200,
-    "y": 120,
+    "payload": "start",
+    "payloadType": "str",
+    "x": 190,
+    "y": 160,
     "wires": [
       [
-        "node-debug-monitor"
+        "node-fn-generator"
       ]
     ]
   },
   {
-    "id": "node-debug-monitor",
+    "id": "node-fn-generator",
+    "type": "function",
+    "z": "tab-tuxtla-gps-simulator",
+    "name": "Generador Coordenadas Tuxtla",
+    "func": "// Waypoints reales de Tuxtla Gutiérrez para Ruta 1 y Ruta 2\nconst ruta1Points = [\n  { lat: 16.7450, lng: -93.1685, name: 'Terán' },\n  { lat: 16.7535, lng: -93.1602, name: 'UNACH Campus I' },\n  { lat: 16.7589, lng: -93.1534, name: 'Plaza Cristal' },\n  { lat: 16.7565, lng: -93.1410, name: 'Rectoría UNICACH' },\n  { lat: 16.7547, lng: -93.1235, name: 'Parque de la Marimba' },\n  { lat: 16.7516, lng: -93.1161, name: 'Parque Central' },\n  { lat: 16.7495, lng: -93.1065, name: 'Parque 5 de Mayo' },\n  { lat: 16.7470, lng: -93.0880, name: 'Polyforum Chiapas' },\n  { lat: 16.7455, lng: -93.0833, name: 'Diana Cazadora' }\n];\n\nconst ruta2Points = [\n  { lat: 16.7320, lng: -93.1450, name: 'Libramiento Sur Pte' },\n  { lat: 16.7350, lng: -93.1280, name: 'Paso a Desnivel San José' },\n  { lat: 16.7410, lng: -93.1125, name: 'Mercado de los Ancianos' },\n  { lat: 16.7475, lng: -93.1145, name: 'Calle Central Sur' },\n  { lat: 16.7516, lng: -93.1161, name: 'Parque Central' },\n  { lat: 16.7600, lng: -93.1120, name: 'Teatro de la Ciudad' },\n  { lat: 16.7720, lng: -93.1050, name: 'Distribuidor Sumidero' },\n  { lat: 16.7840, lng: -93.0980, name: 'Albania Alta / Sumidero' }\n];\n\nlet step1 = context.get('step1') || 0;\nlet step2 = context.get('step2') || 0;\n\nconst p1 = ruta1Points[step1 % ruta1Points.length];\nconst p2 = ruta2Points[step2 % ruta2Points.length];\n\ncontext.set('step1', step1 + 1);\ncontext.set('step2', step2 + 1);\n\nconst msg1 = {\n  headers: { 'Content-Type': 'application/json' },\n  payload: {\n    unitId: 'TX-101',\n    routeId: 'a0000001-0000-0000-0000-000000000001',\n    routeName: 'Ruta 1 - Centro / Terán',\n    lat: p1.lat,\n    lng: p1.lng,\n    speedKmh: Math.floor(Math.random() * 15) + 25,\n    timestamp: new Date().toISOString()\n  }\n};\n\nconst msg2 = {\n  headers: { 'Content-Type': 'application/json' },\n  payload: {\n    unitId: 'TX-204',\n    routeId: 'a0000002-0000-0000-0000-000000000002',\n    routeName: 'Ruta 2 - Sur / Poniente',\n    lat: p2.lat,\n    lng: p2.lng,\n    speedKmh: Math.floor(Math.random() * 12) + 20,\n    timestamp: new Date().toISOString()\n  }\n};\n\nreturn [[msg1, msg2]];",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 470,
+    "y": 160,
+    "wires": [
+      [
+        "node-http-telemetry"
+      ]
+    ]
+  },
+  {
+    "id": "node-http-telemetry",
+    "type": "http request",
+    "z": "tab-tuxtla-gps-simulator",
+    "name": "POST /api/automation/telemetry",
+    "method": "POST",
+    "ret": "obj",
+    "paytoqs": "ignore",
+    "url": "http://host.docker.internal:3000/api/automation/telemetry",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 770,
+    "y": 160,
+    "wires": [
+      [
+        "node-debug-telemetry"
+      ]
+    ]
+  },
+  {
+    "id": "node-debug-telemetry",
     "type": "debug",
-    "z": "tab-simulator",
-    "name": "Consola Telemetría",
+    "z": "tab-tuxtla-gps-simulator",
+    "name": "Respuesta Backend Telemetría",
     "active": true,
     "tosidebar": true,
     "console": false,
-    "tostatus": false,
+    "tostatus": true,
     "complete": "payload",
     "targetType": "msg",
-    "statusVal": "",
-    "statusType": "auto",
-    "x": 480,
-    "y": 120,
+    "statusVal": "payload.data.unitId",
+    "statusType": "msg",
+    "x": 1050,
+    "y": 160,
     "wires": []
   }
 ]

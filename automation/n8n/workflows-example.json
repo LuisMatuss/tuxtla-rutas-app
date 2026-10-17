@@ -1,38 +1,114 @@
-// Estructura base para webhooks de Telegram Bot en n8n y consulta de rutas
 {
-  "name": "Telegram Bot Tuxtla Rutas",
+  "name": "Tuxtla-Rutas - Telegram Bot Geoespacial",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "tuxtla-rutas-bot",
-        "responseMode": "onReceived",
-        "options": {}
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
       },
-      "id": "telegram-webhook-node",
-      "name": "Telegram Webhook",
-      "type": "n8n-nodes-base.webhook",
+      "id": "node-telegram-trigger",
+      "name": "Telegram Trigger (Mensajes y Ubicación)",
+      "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "tuxtla_telegram_creds",
+          "name": "Telegram Bot Token (Env Var)"
+        }
+      }
     },
     {
       "parameters": {
-        "url": "http://backend:3000/api/routes",
-        "options": {}
+        "jsCode": "// Normalización de datos recibidos desde Telegram\nconst msg = $input.first().json.message || $input.first().json;\nconst location = msg.location || {};\nconst chat = msg.chat || {};\nconst from = msg.from || {};\n\nreturn {\n  json: {\n    lat: location.latitude !== undefined ? location.latitude : null,\n    lng: location.longitude !== undefined ? location.longitude : null,\n    chatId: chat.id || null,\n    userName: from.first_name || chat.first_name || 'Usuario',\n    text: msg.text || ''\n  }\n};"
       },
-      "id": "backend-query-node",
-      "name": "Consultar Rutas Backend",
+      "id": "node-extract-location",
+      "name": "Extraer Coordenadas GPS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/automation/telegram-webhook",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lat\": {{$json.lat}},\n  \"lng\": {{$json.lng}},\n  \"chatId\": \"{{$json.chatId}}\",\n  \"userName\": \"{{$json.userName}}\"\n}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "node-http-backend",
+      "name": "Consultar Backend Hexagonal (PostGIS)",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [460, 300]
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{$json.data.chatId}}",
+        "text": "={{$json.data.telegramMessageMarkdown}}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "node-telegram-response",
+      "name": "Enviar Respuesta con Paradas y Horarios",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        940,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "tuxtla_telegram_creds",
+          "name": "Telegram Bot Token (Env Var)"
+        }
+      }
     }
   ],
   "connections": {
-    "Telegram Webhook": {
+    "Telegram Trigger (Mensajes y Ubicación)": {
       "main": [
         [
           {
-            "node": "Consultar Rutas Backend",
+            "node": "Extraer Coordenadas GPS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Coordenadas GPS": {
+      "main": [
+        [
+          {
+            "node": "Consultar Backend Hexagonal (PostGIS)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Backend Hexagonal (PostGIS)": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta con Paradas y Horarios",
             "type": "main",
             "index": 0
           }
@@ -40,6 +116,8 @@
       ]
     }
   },
-  "active": false,
-  "settings": {}
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
 }
