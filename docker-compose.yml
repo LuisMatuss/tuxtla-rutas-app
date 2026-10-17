@@ -1,0 +1,60 @@
+# Configuración de servicios de infraestructura: PostgreSQL + PostGIS, n8n y Node-RED
+# Regla DevSecOps: Sin contraseñas en texto plano ni hardcodeadas. Valores leídos desde .env
+version: '3.8'
+
+services:
+  database:
+    image: postgis/postgis:16-3.4
+    container_name: tuxtla_rutas_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-tuxtla_rutas_db}
+      POSTGRES_USER: ${DB_USER:-tuxtla_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: tuxtla_rutas_n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - GENERIC_TIMEZONE=America/Mexico_City
+      - TZ=America/Mexico_City
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      database:
+        condition: service_healthy
+
+  node-red:
+    image: nodered/node-red:latest
+    container_name: tuxtla_rutas_nodered
+    restart: unless-stopped
+    ports:
+      - "1880:1880"
+    environment:
+      - TZ=America/Mexico_City
+    volumes:
+      - node_red_data:/data
+    depends_on:
+      database:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  n8n_data:
+  node_red_data:

@@ -1,0 +1,45 @@
+// Estructura base para webhooks de Telegram Bot en n8n y consulta de rutas
+{
+  "name": "Telegram Bot Tuxtla Rutas",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tuxtla-rutas-bot",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "telegram-webhook-node",
+      "name": "Telegram Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:3000/api/routes",
+        "options": {}
+      },
+      "id": "backend-query-node",
+      "name": "Consultar Rutas Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Telegram Webhook": {
+      "main": [
+        [
+          {
+            "node": "Consultar Rutas Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

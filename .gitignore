@@ -1,0 +1,65 @@
+# Dependencias de paquetes
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Entornos, secretos y credenciales (Zero-Trust Security)
+.env
+.env.*
+*.env
+backend/.env
+frontend/.env
+*.local
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+*.secret
+secrets/
+
+# Permitir explícitamente archivos de ejemplo/plantilla seguros
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+!**/.env.example
+
+# Datos de bases de datos y volúmenes de contenedores locales
+postgres_data/
+**/postgres_data/
+database_data/
+n8n_data/
+**/n8n_data/
+nodered_data/
+node_red_data/
+**/node_red_data/
+.n8n/
+**/.n8n/
+*.sqlite
+
+# Build y empaquetado
+dist/
+dist-ssr/
+build/
+.vite/
+**/.vite/
+
+# Logs de ejecución
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editores e IDEs
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db

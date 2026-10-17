@@ -1,0 +1,52 @@
+// Flujo simulador de telemetría y emisión periódica de coordenadas GPS para Tuxtla-Rutas
+[
+  {
+    "id": "tab-simulator",
+    "type": "tab",
+    "label": "Simulador GPS Tuxtla",
+    "disabled": false,
+    "info": "Generador de coordenadas simuladas para unidades de transporte en Tuxtla Gutiérrez"
+  },
+  {
+    "id": "node-inject-gps",
+    "type": "inject",
+    "z": "tab-simulator",
+    "name": "Generador GPS cada 5 seg",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "5",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 0.1,
+    "topic": "telemetria/tuxtla/unidades",
+    "payload": "{\"unitId\":\"COLECTIVO-042\",\"routeCode\":\"RUTA-01\",\"latitude\":16.7528,\"longitude\":-93.1158,\"speed\":28,\"timestamp\":\"2026-10-15T00:00:00Z\"}",
+    "payloadType": "json",
+    "x": 200,
+    "y": 120,
+    "wires": [
+      [
+        "node-debug-monitor"
+      ]
+    ]
+  },
+  {
+    "id": "node-debug-monitor",
+    "type": "debug",
+    "z": "tab-simulator",
+    "name": "Consola Telemetría",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 480,
+    "y": 120,
+    "wires": []
+  }
+]
