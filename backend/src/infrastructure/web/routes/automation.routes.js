@@ -22,10 +22,12 @@ export const createAutomationRouter = (dbPool = pool) => {
     findRoutesUseCase
   });
 
-  // Endpoints de automatización
+  // Endpoints de automatización y gestión de flota
   router.post('/telegram-webhook', controller.handleTelegramWebhook);
   router.post('/telemetry', controller.recordTelemetry);
   router.get('/telemetry', controller.getTelemetry);
+  router.post('/fleet', controller.dispatchFleet);
+
 
   return router;
 };

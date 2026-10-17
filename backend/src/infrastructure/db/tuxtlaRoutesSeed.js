@@ -139,16 +139,18 @@ export const TUXTLA_ROUTES_SEED = [
     },
     stops: [
       { id: 'b0000003-0000-0000-0000-000000000001', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Entrada Real del Bosque / Terán Sur', lat: 16.7310, lng: -93.1720, stopOrder: 1 },
-      { id: 'b0000003-0000-0000-0000-000000000002', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Libramiento Sur y Periférico Pte', lat: 16.7315, lng: -93.1550, stopOrder: 2 },
-      { id: 'b0000003-0000-0000-0000-000000000003', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Chedraui Sur / Mactumatzá', lat: 16.7322, lng: -93.1420, stopOrder: 3 },
-      { id: 'b0000003-0000-0000-0000-000000000004', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Paso a Desnivel San José', lat: 16.7350, lng: -93.1280, stopOrder: 4 },
-      { id: 'b0000003-0000-0000-0000-000000000005', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Crucero Villaflores', lat: 16.7375, lng: -93.1180, stopOrder: 5 },
-      { id: 'b0000003-0000-0000-0000-000000000006', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Calle Central y Libramiento Sur', lat: 16.7368, lng: -93.1118, stopOrder: 6 },
-      { id: 'b0000003-0000-0000-0000-000000000007', routeId: 'a0000003-0000-0000-0000-000000000003', name: '11a Oriente y Lib. Sur', lat: 16.7362, lng: -93.1020, stopOrder: 7 },
-      { id: 'b0000003-0000-0000-0000-000000000008', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Plaza Poliforum / Libramiento', lat: 16.7385, lng: -93.0890, stopOrder: 8 },
-      { id: 'b0000003-0000-0000-0000-000000000009', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Central de Abastos', lat: 16.7410, lng: -93.0720, stopOrder: 9 }
+      { id: 'b0000003-0000-0000-0000-000000000002', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Crucero Terán Sur (Conexión Ruta 1)', lat: 16.7435, lng: -93.1665, stopOrder: 2 },
+      { id: 'b0000003-0000-0000-0000-000000000003', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Libramiento Sur y Periférico Pte', lat: 16.7315, lng: -93.1550, stopOrder: 3 },
+      { id: 'b0000003-0000-0000-0000-000000000004', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Chedraui Sur / Mactumatzá', lat: 16.7322, lng: -93.1420, stopOrder: 4 },
+      { id: 'b0000003-0000-0000-0000-000000000005', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Paso a Desnivel San José', lat: 16.7350, lng: -93.1280, stopOrder: 5 },
+      { id: 'b0000003-0000-0000-0000-000000000006', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Crucero Villaflores', lat: 16.7375, lng: -93.1180, stopOrder: 6 },
+      { id: 'b0000003-0000-0000-0000-000000000007', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Calle Central y Libramiento Sur', lat: 16.7368, lng: -93.1118, stopOrder: 7 },
+      { id: 'b0000003-0000-0000-0000-000000000008', routeId: 'a0000003-0000-0000-0000-000000000003', name: '11a Oriente y Lib. Sur', lat: 16.7362, lng: -93.1020, stopOrder: 8 },
+      { id: 'b0000003-0000-0000-0000-000000000009', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Plaza Poliforum / Libramiento', lat: 16.7385, lng: -93.0890, stopOrder: 9 },
+      { id: 'b0000003-0000-0000-0000-000000000010', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Central de Abastos', lat: 16.7410, lng: -93.0720, stopOrder: 10 }
     ]
   },
+
 
   // 4. Ruta 90 - Libramiento Norte (Laguitos - Torre Chiapas)
   {

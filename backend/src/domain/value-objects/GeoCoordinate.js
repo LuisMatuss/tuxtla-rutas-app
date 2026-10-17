@@ -39,9 +39,30 @@ export class GeoCoordinate {
   }
 
   /**
+   * Calcula la distancia geodésica Haversine exacta en metros hacia otra coordenada
+   * @param {GeoCoordinate} other
+   * @returns {number}
+   */
+  distanceTo(other) {
+    const R = 6371e3; // Radio medio de la Tierra en metros
+    const φ1 = (this.lat * Math.PI) / 180;
+    const φ2 = (other.lat * Math.PI) / 180;
+    const Δφ = ((other.lat - this.lat) * Math.PI) / 180;
+    const Δλ = ((other.lng - this.lng) * Math.PI) / 180;
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return Math.round(R * c * 10) / 10;
+  }
+
+  /**
    * @returns {string}
    */
   toString() {
     return `${this.lat}, ${this.lng}`;
   }
 }
+

@@ -1,19 +1,21 @@
-// Adaptador Primario (HTTP Controller): Maneja solicitudes REST y delega a los Casos de Uso
-// Regla: No contiene lógica de negocio; valida parámetros HTTP y responde con códigos de estado adecuados.
+import { TUXTLA_ROUTES_SEED } from '../../db/tuxtlaRoutesSeed.js';
 
 export class RouteController {
   /**
    * @param {Object} params
    * @param {import('../../../application/ports/in/FindRoutesUseCase.interface.js').FindRoutesUseCaseInterface} params.findRoutesUseCase
    * @param {import('../../../application/ports/in/CalculateNearestStopUseCase.interface.js').CalculateNearestStopUseCaseInterface} params.calculateNearestStopUseCase
+   * @param {import('../../../application/use-cases/PlanTrip.js').PlanTrip} [params.planTripUseCase]
    */
-  constructor({ findRoutesUseCase, calculateNearestStopUseCase }) {
+  constructor({ findRoutesUseCase, calculateNearestStopUseCase, planTripUseCase }) {
     if (!findRoutesUseCase || !calculateNearestStopUseCase) {
       throw new Error('RouteController requiere findRoutesUseCase y calculateNearestStopUseCase');
     }
     this.findRoutesUseCase = findRoutesUseCase;
     this.calculateNearestStopUseCase = calculateNearestStopUseCase;
+    this.planTripUseCase = planTripUseCase;
   }
+
 
   /**
    * GET /api/routes
@@ -117,4 +119,78 @@ export class RouteController {
       next(error);
     }
   };
+
+  /**
+   * POST /api/trips/plan
+   * Calcula itinerarios directos y con trasbordo entre origen y destino
+   */
+  planTrip = async (req, res, next) => {
+    try {
+      const { originLat, originLng, destLat, destLng } = req.body || {};
+
+      if (
+        originLat === undefined ||
+        originLng === undefined ||
+        destLat === undefined ||
+        destLng === undefined
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Se requieren originLat, originLng, destLat y destLng para planificar el viaje.',
+            status: 400
+          }
+        });
+      }
+
+      const result = await this.planTripUseCase.execute({
+        originLat,
+        originLng,
+        destLat,
+        destLng
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * PATCH /api/routes/:id/config
+   * Permite al rol Admin actualizar frecuencia, estado operativo o color de la ruta
+   */
+  updateRouteConfig = async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { frequencyMinutes, status, color } = req.body || {};
+
+      const seedRoute = TUXTLA_ROUTES_SEED.find((r) => r.id === id);
+      if (!seedRoute) {
+        return res.status(404).json({
+          success: false,
+          error: { message: `Ruta con ID ${id} no encontrada.` }
+        });
+      }
+
+      if (frequencyMinutes !== undefined) {
+        seedRoute.scheduleInfo.frequencyMinutes = Number(frequencyMinutes);
+      }
+      if (status !== undefined) {
+        seedRoute.scheduleInfo.status = status; // 'OPERATIONAL' | 'DELAYED' | 'SUSPENDED'
+      }
+      if (color !== undefined) {
+        seedRoute.color = color;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: `Configuración de ruta "${seedRoute.name}" actualizada exitosamente.`,
+        data: seedRoute
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
+

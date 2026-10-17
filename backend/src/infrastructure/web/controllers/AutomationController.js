@@ -388,4 +388,61 @@ export class AutomationController {
       next(error);
     }
   };
+
+  /**
+   * POST /api/automation/fleet
+   * Permite al rol Admin despachar una nueva combi en vivo a cualquier ruta o modificar estado
+   */
+  dispatchFleet = async (req, res, next) => {
+    try {
+      const { unitId, routeId, speedKmh = 30, status = 'IN_TRANSIT' } = req.body || {};
+
+      if (!unitId) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'El identificador de unidad (unitId) es obligatorio.' }
+        });
+      }
+
+      const route = this.routesMap.get(routeId) || Array.from(this.routesMap.values())[0];
+      const fromStop = route.stops[0];
+      const toStop = route.stops[1] || route.stops[0];
+
+      const existing = this.telemetryStore.get(unitId);
+      const isNew = !existing;
+
+      const updatedUnit = {
+        unitId,
+        routeId: route.id,
+        routeName: route.name,
+        routeColor: route.color,
+        lat: existing?.lat || fromStop.lat,
+        lng: existing?.lng || fromStop.lng,
+        speedKmh: status === 'BOARDING' ? 0 : Number(speedKmh) || 30,
+        status: status || existing?.status || 'IN_TRANSIT',
+        dwellRemainingSec: status === 'BOARDING' ? 15 : 0,
+        currentStopIndex: existing?.currentStopIndex || 0,
+        nextStopIndex: existing?.nextStopIndex || 1,
+        currentStopName: existing?.currentStopName || fromStop.name,
+        nextStopName: existing?.nextStopName || toStop.name,
+        direction: existing?.direction || 1,
+        progress: existing?.progress || 0.1,
+        locationName: existing?.locationName || `Hacia ${toStop.name}`,
+        timestamp: new Date().toISOString()
+      };
+
+      this.telemetryStore.set(unitId, updatedUnit);
+
+      return res.status(isNew ? 201 : 200).json({
+        success: true,
+        message: isNew
+          ? `Nueva unidad ${unitId} despachada exitosamente a la ${route.name}.`
+          : `Unidad ${unitId} actualizada en vivo.`,
+        data: updatedUnit
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
+

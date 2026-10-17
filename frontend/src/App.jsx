@@ -1,10 +1,41 @@
 // Componente Raíz: Dashboard de Movilidad Urbana y GIS para Tuxtla Gutiérrez
-import React, { useState } from 'react';
-import { Bus, MapPin, Layers, RefreshCw, PanelLeftClose, PanelLeft, Clock, Radio } from 'lucide-react';
+// Sistema Multi-Perfil (Pasajero, Soporte Vial, Administrador), Planificador Inteligente de Viajes,
+// Gestión de Alertas Viales y Telemetría GPS en Tiempo Real.
+
+import React, { useState, useEffect } from 'react';
+import {
+  Bus,
+  MapPin,
+  Layers,
+  RefreshCw,
+  PanelLeftClose,
+  PanelLeft,
+  Clock,
+  Radio,
+  Compass,
+  Shield,
+  Headphones,
+  User,
+  AlertTriangle,
+  Megaphone
+} from 'lucide-react';
 import { RouteSelector } from './components/Sidebar/RouteSelector.jsx';
 import { ScheduleInfo } from './components/Sidebar/ScheduleInfo.jsx';
+import { TripPlannerPanel } from './components/Sidebar/TripPlannerPanel.jsx';
+import { SupportPanel } from './components/Sidebar/SupportPanel.jsx';
+import { AdminPanel } from './components/Sidebar/AdminPanel.jsx';
+import { ReportIncidentModal } from './components/Sidebar/ReportIncidentModal.jsx';
 import { MapView } from './components/Map/MapView.jsx';
 import { useGeoRoutes } from './hooks/useGeoRoutes.js';
+import { apiClient } from './api/client.js';
+
+const PERSONAL_POINTS_KEY = 'tuxtla_personal_points';
+
+const DEFAULT_PERSONAL_POINTS = {
+  casa: { lat: 16.7322, lng: -93.1420, label: 'Zona Sur / Terán' },
+  escuela: { lat: 16.7535, lng: -93.1602, label: 'UNACH Campus I (Blvd. Belisario Domínguez)' },
+  trabajo: { lat: 16.7516, lng: -93.1161, label: 'Parque Central de Tuxtla' }
+};
 
 export default function App() {
   const {
@@ -26,36 +57,111 @@ export default function App() {
     reloadRoutes
   } = useGeoRoutes();
 
-  const [activeTab, setActiveTab] = useState('routes'); // 'routes' | 'schedule'
+  // 1. Estados de Perfil y Navegación
+  const [currentRole, setCurrentRole] = useState('USER'); // 'USER' | 'SUPPORT' | 'ADMIN'
+  const [userTab, setUserTab] = useState('routes'); // 'routes' | 'planner' | 'schedule'
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Manejador al seleccionar ruta: cambia la pestaña si es relevante
-  const handleSelectRoute = (id) => {
-    selectRoute(id);
-    if (id) {
-      setActiveTab('schedule');
+  // 2. Puntos Personales (Casa, Escuela, Trabajo)
+  const [personalPoints, setPersonalPoints] = useState(() => {
+    try {
+      const saved = localStorage.getItem(PERSONAL_POINTS_KEY);
+      return saved ? JSON.parse(saved) : DEFAULT_PERSONAL_POINTS;
+    } catch {
+      return DEFAULT_PERSONAL_POINTS;
+    }
+  });
+
+  // 3. Modo Selección en Mapa (Picking)
+  const [pickingTarget, setPickingTarget] = useState(null); // 'casa' | 'escuela' | 'trabajo' | 'incident' | null
+  const [pickedSupportCoordinate, setPickedSupportCoordinate] = useState(null);
+
+  // 4. Viaje Planificado Activo
+  const [selectedTrip, setSelectedTrip] = useState(null);
+
+  // 5. Modal de Reporte Ciudadano
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // 6. Alertas e Incidencias Viales
+  const [incidents, setIncidents] = useState([]);
+  const [loadingIncidents, setLoadingIncidents] = useState(false);
+
+  const fetchIncidentsList = async () => {
+    setLoadingIncidents(true);
+    try {
+      const res = await apiClient.fetchIncidents();
+      if (res.data) {
+        setIncidents(res.data);
+      }
+    } catch (err) {
+      console.warn('Error al obtener incidencias:', err);
+    } finally {
+      setLoadingIncidents(false);
     }
   };
+
+  useEffect(() => {
+    fetchIncidentsList();
+  }, []);
+
+  // Manejador de clics en el mapa durante el modo picking
+  const handlePickCoordinate = (coords) => {
+    if (!pickingTarget) return;
+
+    if (pickingTarget === 'casa' || pickingTarget === 'escuela' || pickingTarget === 'trabajo') {
+      const updated = {
+        ...personalPoints,
+        [pickingTarget]: {
+          lat: coords.lat,
+          lng: coords.lng,
+          label: `Fijado en mapa (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`
+        }
+      };
+      setPersonalPoints(updated);
+      try {
+        localStorage.setItem(PERSONAL_POINTS_KEY, JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Error al guardar puntos personales:', err);
+      }
+      setPickingTarget(null);
+    } else if (pickingTarget === 'incident') {
+      setPickedSupportCoordinate(coords);
+      setPickingTarget(null);
+    }
+  };
+
+  // Manejador al seleccionar ruta
+  const handleSelectRoute = (id) => {
+    selectRoute(id);
+    setSelectedTrip(null);
+    if (id && currentRole === 'USER') {
+      setUserTab('schedule');
+    }
+  };
+
+  // Conteo de alertas activas
+  const activeAlertsCount = incidents.filter((i) => i.status === 'ACTIVE_ALERT').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       {/* 1. BARRA SUPERIOR (HEADER DEL SISTEMA) */}
       <header
         style={{
-          height: '60px',
-          background: 'rgba(15, 23, 42, 0.95)',
+          height: '62px',
+          background: 'rgba(15, 23, 42, 0.96)',
           backdropFilter: 'var(--glass-blur)',
           borderBottom: '1px solid var(--border-subtle)',
-          padding: '0 20px',
+          padding: '0 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           zIndex: 1100,
-          flexShrink: 0
+          flexShrink: 0,
+          gap: '12px'
         }}
       >
-        {/* Identidad de Marca */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Identidad de Marca y Toggle de Sidebar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
             type="button"
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -92,89 +198,113 @@ export default function App() {
             </div>
 
             <div>
-              <h1 style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '-0.3px', margin: 0, color: '#f8fafc' }}>
+              <h1 style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '-0.3px', margin: 0, color: '#f8fafc' }}>
                 Tuxtla-Rutas
               </h1>
               <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                Sistema GIS de Movilidad Urbana &bull; Chiapas
+                Movilidad Urbana &bull; Chiapas
               </span>
             </div>
           </div>
         </div>
 
-        {/* Acciones Rápidas y Puntos Clave */}
+        {/* 2. SELECTOR DE ROLES INTERACTIVO (Usuario, Soporte, Admin) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: 'rgba(30, 41, 59, 0.7)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '12px',
+            padding: '3px'
+          }}
+        >
+          {[
+            { id: 'USER', label: '👤 Usuario', badgeColor: '#10b981', title: 'Modo Pasajero: Rutas, Qué combi tomo y horarios' },
+            { id: 'SUPPORT', label: '🎧 Soporte Vial', badgeColor: '#3b82f6', title: 'Centro de Alertas y Reportes Ciudadanos' },
+            { id: 'ADMIN', label: '🛡️ Administrador', badgeColor: '#8b5cf6', title: 'Control Operativo de Frecuencias y Flota' }
+          ].map((role) => {
+            const isSelected = currentRole === role.id;
+            return (
+              <button
+                key={role.id}
+                type="button"
+                onClick={() => {
+                  setCurrentRole(role.id);
+                  setSidebarOpen(true);
+                }}
+                title={role.title}
+                style={{
+                  padding: '6px 12px',
+                  background: isSelected ? role.badgeColor : 'transparent',
+                  border: 'none',
+                  borderRadius: '9px',
+                  color: isSelected ? '#ffffff' : '#94a3b8',
+                  fontSize: '12px',
+                  fontWeight: isSelected ? 700 : 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <span>{role.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Acciones Rápidas y Badges de Monitoreo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Puntos emblemáticos de simulación rápida */}
+          {/* Botón Pasajero: Reportar Incidente */}
           <button
             type="button"
-            onClick={() => simulateTuxtlaLocation(16.7516, -93.1161)}
+            onClick={() => setIsReportModalOpen(true)}
             style={{
               padding: '6px 12px',
-              background: 'rgba(59, 130, 246, 0.12)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
               borderRadius: '8px',
-              color: '#93c5fd',
-              fontSize: '12px',
-              fontWeight: 500,
+              color: '#f87171',
+              fontSize: '11px',
+              fontWeight: 700,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '5px'
+              gap: '5px',
+              transition: 'all 0.2s ease'
             }}
+            title="Enviar reporte ciudadano de combi llena o bloqueo"
           >
-            <MapPin size={13} />
-            <span>Parque Central</span>
+            <Megaphone size={13} />
+            <span>Reportar Incidente</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => simulateTuxtlaLocation(16.7589, -93.1534)}
-            style={{
-              padding: '6px 12px',
-              background: 'rgba(59, 130, 246, 0.12)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
-              borderRadius: '8px',
-              color: '#93c5fd',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
-          >
-            <MapPin size={13} />
-            <span>Plaza Cristal</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              selectRoute(null);
-              clearUserLocation();
-            }}
-            style={{
-              padding: '6px 12px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '8px',
-              color: '#e2e8f0',
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
-          >
-            <Layers size={13} />
-            <span>Ver Todo</span>
-          </button>
-
-          {/* Badge de Telemetría GPS en vivo */}
+          {/* Badge de Alertas Viales */}
           <div
             style={{
-              padding: '5px 10px',
-              borderRadius: '20px',
+              padding: '5px 9px',
+              borderRadius: '16px',
+              background: activeAlertsCount > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.15)',
+              border: activeAlertsCount > 0 ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(16, 185, 129, 0.4)',
+              color: activeAlertsCount > 0 ? '#fca5a5' : '#34d399',
+              fontSize: '11px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <AlertTriangle size={12} color={activeAlertsCount > 0 ? '#f87171' : '#10b981'} />
+            <span>{activeAlertsCount} {activeAlertsCount === 1 ? 'alerta' : 'alertas'}</span>
+          </div>
+
+          {/* Badge de Combis GPS en Vivo */}
+          <div
+            style={{
+              padding: '5px 9px',
+              borderRadius: '16px',
               background: 'rgba(37, 99, 235, 0.15)',
               border: '1px solid rgba(37, 99, 235, 0.4)',
               color: '#60a5fa',
@@ -182,48 +312,21 @@ export default function App() {
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              gap: '5px'
             }}
           >
             <Radio size={12} color="#60a5fa" />
-            <span>{telemetryUnits.length} combis en vivo</span>
+            <span>{telemetryUnits.length} combis</span>
           </div>
 
-          {/* Badge de Estado del Backend / Modo Demo */}
-          <div
-            style={{
-              padding: '5px 10px',
-              borderRadius: '20px',
-              background: isDemoMode ? 'rgba(217, 119, 6, 0.15)' : 'rgba(5, 150, 105, 0.15)',
-              border: isDemoMode ? '1px solid rgba(217, 119, 6, 0.4)' : '1px solid rgba(5, 150, 105, 0.4)',
-              color: isDemoMode ? '#fbbf24' : '#34d399',
-              fontSize: '11px',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            title={
-              isDemoMode
-                ? 'El backend no está accesible; se están utilizando los datos locales de Tuxtla Gutiérrez.'
-                : 'Conexión activa con el backend PostgreSQL/PostGIS.'
-            }
-          >
-            <span
-              style={{
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                background: isDemoMode ? '#f59e0b' : '#10b981'
-              }}
-            />
-            <span>{isDemoMode ? 'Modo Resiliencia (Demo Tuxtla)' : 'Backend PostGIS Activo'}</span>
-          </div>
-
+          {/* Botón Recargar */}
           <button
             type="button"
-            onClick={reloadRoutes}
-            disabled={loading}
+            onClick={() => {
+              reloadRoutes();
+              fetchIncidentsList();
+            }}
+            disabled={loading || loadingIncidents}
             style={{
               background: 'transparent',
               border: 'none',
@@ -233,21 +336,21 @@ export default function App() {
               display: 'flex',
               alignItems: 'center'
             }}
-            title="Recargar datos"
+            title="Recargar datos del sistema"
           >
             <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           </button>
         </div>
       </header>
 
-      {/* 2. ÁREA DE TRABAJO PRINCIPAL: SIDEBAR + MAPA */}
+      {/* 2. ÁREA DE TRABAJO PRINCIPAL: SIDEBAR MULTI-PERFIL + MAPA */}
       <div style={{ display: 'flex', flex: 1, position: 'relative', overflow: 'hidden' }}>
         {/* Panel Lateral Desplegable */}
         {sidebarOpen && (
           <aside
             style={{
-              width: '380px',
-              maxWidth: '90vw',
+              width: '400px',
+              maxWidth: '92vw',
               background: 'var(--bg-sidebar)',
               backdropFilter: 'var(--glass-blur)',
               borderRight: '1px solid var(--border-subtle)',
@@ -259,81 +362,181 @@ export default function App() {
               flexShrink: 0
             }}
           >
-            {/* Pestañas del Panel Lateral */}
+            {/* Header del Perfil Activo */}
             <div
               style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                padding: '12px 16px 0 16px',
-                gap: '8px',
-                borderBottom: '1px solid var(--border-subtle)'
+                padding: '10px 16px',
+                background:
+                  currentRole === 'ADMIN'
+                    ? 'linear-gradient(90deg, rgba(139, 92, 246, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%)'
+                    : currentRole === 'SUPPORT'
+                    ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%)'
+                    : 'linear-gradient(90deg, rgba(16, 185, 129, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
               }}
             >
-              <button
-                type="button"
-                onClick={() => setActiveTab('routes')}
-                style={{
-                  padding: '9px 12px',
-                  background: activeTab === 'routes' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                  border: 'none',
-                  borderBottom: activeTab === 'routes' ? '2px solid var(--color-primary-light)' : '2px solid transparent',
-                  color: activeTab === 'routes' ? '#ffffff' : 'var(--text-muted)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  fontFamily: 'inherit'
-                }}
-              >
-                <Bus size={15} />
-                <span>Rutas ({routes.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('schedule')}
-                style={{
-                  padding: '9px 12px',
-                  background: activeTab === 'schedule' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                  border: 'none',
-                  borderBottom: activeTab === 'schedule' ? '2px solid #3b82f6' : '2px solid transparent',
-                  color: activeTab === 'schedule' ? '#ffffff' : 'var(--text-muted)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  fontFamily: 'inherit'
-                }}
-              >
-                <Clock size={15} />
-                <span>Horarios & Cercanía</span>
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {currentRole === 'ADMIN' ? (
+                  <Shield size={16} color="#c4b5fd" />
+                ) : currentRole === 'SUPPORT' ? (
+                  <Headphones size={16} color="#93c5fd" />
+                ) : (
+                  <User size={16} color="#6ee7b7" />
+                )}
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>
+                  {currentRole === 'ADMIN'
+                    ? 'Consola de Administración de Flota'
+                    : currentRole === 'SUPPORT'
+                    ? 'Consola de Soporte Vial & Alertas'
+                    : 'Portal del Pasajero de Tuxtla'}
+                </span>
+              </div>
             </div>
 
-            {/* Contenido de la pestaña activa */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-              {activeTab === 'routes' ? (
-                <RouteSelector
+            {/* Sub-Pestañas para el Perfil USUARIO */}
+            {currentRole === 'USER' && (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  padding: '8px 12px 0 12px',
+                  gap: '4px',
+                  borderBottom: '1px solid var(--border-subtle)'
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setUserTab('routes')}
+                  style={{
+                    padding: '8px 4px',
+                    background: userTab === 'routes' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                    border: 'none',
+                    borderBottom: userTab === 'routes' ? '2px solid var(--color-primary-light)' : '2px solid transparent',
+                    color: userTab === 'routes' ? '#ffffff' : 'var(--text-muted)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Bus size={13} />
+                  <span>Rutas</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setUserTab('planner')}
+                  style={{
+                    padding: '8px 4px',
+                    background: userTab === 'planner' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                    border: 'none',
+                    borderBottom: userTab === 'planner' ? '2px solid #38bdf8' : '2px solid transparent',
+                    color: userTab === 'planner' ? '#ffffff' : 'var(--text-muted)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Compass size={13} color="#38bdf8" />
+                  <span>¿Qué Combi?</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setUserTab('schedule')}
+                  style={{
+                    padding: '8px 4px',
+                    background: userTab === 'schedule' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                    border: 'none',
+                    borderBottom: userTab === 'schedule' ? '2px solid #3b82f6' : '2px solid transparent',
+                    color: userTab === 'schedule' ? '#ffffff' : 'var(--text-muted)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Clock size={13} />
+                  <span>Horarios</span>
+                </button>
+              </div>
+            )}
+
+            {/* Contenido según el rol activo */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '14px' }}>
+              {/* ROL USUARIO */}
+              {currentRole === 'USER' && (
+                <>
+                  {userTab === 'routes' && (
+                    <RouteSelector
+                      routes={routes}
+                      selectedRouteId={selectedRouteId}
+                      onSelectRoute={handleSelectRoute}
+                    />
+                  )}
+
+                  {userTab === 'planner' && (
+                    <TripPlannerPanel
+                      personalPoints={personalPoints}
+                      userLocation={userLocation}
+                      onPickPointOnMap={(type) => setPickingTarget(type)}
+                      pickingTarget={pickingTarget}
+                      onSelectTrip={(trip) => {
+                        setSelectedTrip(trip);
+                        selectRoute(null);
+                      }}
+                      selectedTrip={selectedTrip}
+                    />
+                  )}
+
+                  {userTab === 'schedule' && (
+                    <ScheduleInfo
+                      route={selectedRoute}
+                      activeStop={activeStop}
+                      nearestStops={nearestStops}
+                      loadingNearest={loadingNearest}
+                      userLocation={userLocation}
+                      onSelectStop={selectStop}
+                      onSimulateLocation={simulateTuxtlaLocation}
+                      onClearLocation={clearUserLocation}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* ROL SOPORTE VIAL */}
+              {currentRole === 'SUPPORT' && (
+                <SupportPanel
                   routes={routes}
-                  selectedRouteId={selectedRouteId}
-                  onSelectRoute={handleSelectRoute}
+                  incidents={incidents}
+                  onRefreshIncidents={fetchIncidentsList}
+                  onPickCoordinateOnMap={() => setPickingTarget('incident')}
+                  pickingTarget={pickingTarget}
+                  pickedCoordinate={pickedSupportCoordinate}
                 />
-              ) : (
-                <ScheduleInfo
-                  route={selectedRoute}
-                  activeStop={activeStop}
-                  nearestStops={nearestStops}
-                  loadingNearest={loadingNearest}
-                  userLocation={userLocation}
-                  onSelectStop={selectStop}
-                  onSimulateLocation={simulateTuxtlaLocation}
-                  onClearLocation={clearUserLocation}
+              )}
+
+              {/* ROL ADMINISTRADOR */}
+              {currentRole === 'ADMIN' && (
+                <AdminPanel
+                  routes={routes}
+                  telemetryUnits={telemetryUnits}
+                  incidents={incidents}
+                  onReloadRoutes={reloadRoutes}
+                  onRefreshIncidents={fetchIncidentsList}
                 />
               )}
             </div>
@@ -349,12 +552,27 @@ export default function App() {
             activeStop={activeStop}
             userLocation={userLocation}
             units={telemetryUnits}
+            personalPoints={personalPoints}
+            incidents={incidents}
+            selectedTrip={selectedTrip}
+            pickingTarget={pickingTarget}
+            onPickCoordinate={handlePickCoordinate}
+            onCancelPicking={() => setPickingTarget(null)}
             onMapClick={setUserLocation}
             onSelectRoute={handleSelectRoute}
             onSelectStop={selectStop}
           />
         </main>
       </div>
+
+      {/* Modal de Reporte Ciudadano */}
+      <ReportIncidentModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        routes={routes}
+        userLocation={userLocation}
+        onIncidentReported={fetchIncidentsList}
+      />
     </div>
   );
 }

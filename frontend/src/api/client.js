@@ -145,16 +145,18 @@ export const BACKUP_ROUTES = [
     },
     stops: [
       { id: 'b0000003-0000-0000-0000-000000000001', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Entrada Real del Bosque / Terán Sur', lat: 16.7310, lng: -93.1720, stopOrder: 1, geometry: { type: 'Point', coordinates: [-93.1720, 16.7310] } },
-      { id: 'b0000003-0000-0000-0000-000000000002', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Libramiento Sur y Periférico Pte', lat: 16.7315, lng: -93.1550, stopOrder: 2, geometry: { type: 'Point', coordinates: [-93.1550, 16.7315] } },
-      { id: 'b0000003-0000-0000-0000-000000000003', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Chedraui Sur / Mactumatzá', lat: 16.7322, lng: -93.1420, stopOrder: 3, geometry: { type: 'Point', coordinates: [-93.1420, 16.7322] } },
-      { id: 'b0000003-0000-0000-0000-000000000004', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Paso a Desnivel San José', lat: 16.7350, lng: -93.1280, stopOrder: 4, geometry: { type: 'Point', coordinates: [-93.1280, 16.7350] } },
-      { id: 'b0000003-0000-0000-0000-000000000005', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Crucero Villaflores', lat: 16.7375, lng: -93.1180, stopOrder: 5, geometry: { type: 'Point', coordinates: [-93.1180, 16.7375] } },
-      { id: 'b0000003-0000-0000-0000-000000000006', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Calle Central y Libramiento Sur', lat: 16.7368, lng: -93.1118, stopOrder: 6, geometry: { type: 'Point', coordinates: [-93.1118, 16.7368] } },
-      { id: 'b0000003-0000-0000-0000-000000000007', routeId: 'a0000003-0000-0000-0000-000000000003', name: '11a Oriente y Lib. Sur', lat: 16.7362, lng: -93.1020, stopOrder: 7, geometry: { type: 'Point', coordinates: [-93.1020, 16.7362] } },
-      { id: 'b0000003-0000-0000-0000-000000000008', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Plaza Poliforum / Libramiento', lat: 16.7385, lng: -93.0890, stopOrder: 8, geometry: { type: 'Point', coordinates: [-93.0890, 16.7385] } },
-      { id: 'b0000003-0000-0000-0000-000000000009', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Central de Abastos', lat: 16.7410, lng: -93.0720, stopOrder: 9, geometry: { type: 'Point', coordinates: [-93.0720, 16.7410] } }
+      { id: 'b0000003-0000-0000-0000-000000000002', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Crucero Terán Sur (Conexión Ruta 1)', lat: 16.7435, lng: -93.1665, stopOrder: 2, geometry: { type: 'Point', coordinates: [-93.1665, 16.7435] } },
+      { id: 'b0000003-0000-0000-0000-000000000003', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Libramiento Sur y Periférico Pte', lat: 16.7315, lng: -93.1550, stopOrder: 3, geometry: { type: 'Point', coordinates: [-93.1550, 16.7315] } },
+      { id: 'b0000003-0000-0000-0000-000000000004', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Chedraui Sur / Mactumatzá', lat: 16.7322, lng: -93.1420, stopOrder: 4, geometry: { type: 'Point', coordinates: [-93.1420, 16.7322] } },
+      { id: 'b0000003-0000-0000-0000-000000000005', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Paso a Desnivel San José', lat: 16.7350, lng: -93.1280, stopOrder: 5, geometry: { type: 'Point', coordinates: [-93.1280, 16.7350] } },
+      { id: 'b0000003-0000-0000-0000-000000000006', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Crucero Villaflores', lat: 16.7375, lng: -93.1180, stopOrder: 6, geometry: { type: 'Point', coordinates: [-93.1180, 16.7375] } },
+      { id: 'b0000003-0000-0000-0000-000000000007', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Calle Central y Libramiento Sur', lat: 16.7368, lng: -93.1118, stopOrder: 7, geometry: { type: 'Point', coordinates: [-93.1118, 16.7368] } },
+      { id: 'b0000003-0000-0000-0000-000000000008', routeId: 'a0000003-0000-0000-0000-000000000003', name: '11a Oriente y Lib. Sur', lat: 16.7362, lng: -93.1020, stopOrder: 8, geometry: { type: 'Point', coordinates: [-93.1020, 16.7362] } },
+      { id: 'b0000003-0000-0000-0000-000000000009', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Plaza Poliforum / Libramiento', lat: 16.7385, lng: -93.0890, stopOrder: 9, geometry: { type: 'Point', coordinates: [-93.0890, 16.7385] } },
+      { id: 'b0000003-0000-0000-0000-000000000010', routeId: 'a0000003-0000-0000-0000-000000000003', name: 'Central de Abastos', lat: 16.7410, lng: -93.0720, stopOrder: 10, geometry: { type: 'Point', coordinates: [-93.0720, 16.7410] } }
     ]
   },
+
 
   // 4. Ruta 90 - Libramiento Norte (Laguitos - Torre Chiapas)
   {
@@ -361,7 +363,46 @@ const DEMO_UNITS_STATE = [
   { unitId: 'TX-73A', routeId: 'a0000008-0000-0000-0000-000000000008', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.40, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 30 }
 ];
 
+// Alertas e incidentes viales en memoria para modo demo/offline
+let demoIncidents = [
+  {
+    id: 'inc-001',
+    type: 'ROAD_BLOCK',
+    icon: '🚧',
+    title: 'Obras y Reducción de Carril en Av. Central',
+    description: 'Trabajos de mantenimiento a la altura de 11a Poniente. Reducción a un carril con desvío sugerido.',
+    lat: 16.7554,
+    lng: -93.1295,
+    locationName: 'Av. Central y 11a Poniente',
+    routeId: 'a0000001-0000-0000-0000-000000000001',
+    routeName: 'Ruta 1 - Av. Central / UNACH / Terán',
+    routeColor: '#2563EB',
+    delayMinutes: 15,
+    status: 'ACTIVE_ALERT',
+    reportedBy: 'Soporte Vial',
+    createdAt: new Date(Date.now() - 3600000).toISOString()
+  },
+  {
+    id: 'inc-002',
+    type: 'HEAVY_TRAFFIC',
+    icon: '🚗',
+    title: 'Tráfico Intenso en Crucero Villaflores',
+    description: 'Circulación lenta en Libramiento Sur con avance intermitente por semáforo en sincronización.',
+    lat: 16.7375,
+    lng: -93.1180,
+    locationName: 'Libramiento Sur y Crucero Villaflores',
+    routeId: 'a0000003-0000-0000-0000-000000000003',
+    routeName: 'Ruta 43 - Libramiento Sur (Poniente - Oriente)',
+    routeColor: '#D97706',
+    delayMinutes: 12,
+    status: 'ACTIVE_ALERT',
+    reportedBy: 'Pasajero Combi TX-43A',
+    createdAt: new Date(Date.now() - 1800000).toISOString()
+  }
+];
+
 let lastSimTime = Date.now();
+
 
 function advanceDemoKinematics() {
   const now = Date.now();
@@ -618,6 +659,334 @@ export const apiClient = {
     }
   },
 
+  /**
+   * Planificador inteligente de viajes ("¿Qué combi tomo?")
+   */
+  async planTrip({ originLat, originLng, destLat, destLng }) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips/plan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ originLat, originLng, destLat, destLng }),
+        signal: AbortSignal.timeout(4000)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Error al planificar viaje`);
+      }
+
+      const json = await response.json();
+      return {
+        success: true,
+        data: json,
+        isDemoMode: false
+      };
+    } catch (err) {
+      console.warn('[Tuxtla-Rutas API] Planificando viaje localmente en modo Offline/Demo:', err.message);
+
+      // Algoritmo multimodal de contingencia local
+      const routes = BACKUP_ROUTES.filter((r) => r.scheduleInfo?.status !== 'SUSPENDED');
+      const directOptions = [];
+      const transferOptions = [];
+
+      const MAX_WALK = 1100;
+      const MAX_TRANSFER = 500;
+
+      for (const route of routes) {
+        let bestOrig = null, minODist = Infinity, bestDest = null, minDDist = Infinity;
+        for (const stop of route.stops) {
+          const od = calculateHaversineDistance(originLat, originLng, stop.lat, stop.lng);
+          const dd = calculateHaversineDistance(destLat, destLng, stop.lat, stop.lng);
+          if (od <= MAX_WALK && od < minODist) { minODist = od; bestOrig = stop; }
+          if (dd <= MAX_WALK && dd < minDDist) { minDDist = dd; bestDest = stop; }
+        }
+
+        if (bestOrig && bestDest && bestOrig.id !== bestDest.id) {
+          const stopsCount = Math.abs(bestDest.stopOrder - bestOrig.stopOrder);
+          if (stopsCount >= 1) {
+            const oWalk = Math.max(1, Math.round(minODist / 80));
+            const transit = Math.round(stopsCount * 2.2) + 3;
+            const dWalk = Math.max(1, Math.round(minDDist / 80));
+            directOptions.push({
+              id: `direct-${route.id}`,
+              type: 'DIRECT',
+              routeId: route.id,
+              routeName: route.name,
+              routeColor: route.color,
+              originStop: bestOrig,
+              destStop: bestDest,
+              originWalkMeters: Math.round(minODist),
+              destWalkMeters: Math.round(minDDist),
+              totalWalkMeters: Math.round(minODist + minDDist),
+              stopsCount,
+              estimatedMinutes: oWalk + transit + dWalk,
+              instructions: [
+                `Caminar ${Math.round(minODist)} m hacia "${bestOrig.name}" (~${oWalk} min).`,
+                `Tomar ${route.name} y viajar ${stopsCount} paradas (~${transit} min).`,
+                `Descender en "${bestDest.name}".`,
+                `Caminar ${Math.round(minDDist)} m al destino final (~${dWalk} min).`
+              ]
+            });
+          }
+        }
+      }
+
+      // Trasbordos locales
+      for (let i = 0; i < routes.length; i++) {
+        const rA = routes[i];
+        let bestOrigA = null, minODA = Infinity;
+        for (const s of rA.stops) {
+          const d = calculateHaversineDistance(originLat, originLng, s.lat, s.lng);
+          if (d <= MAX_WALK && d < minODA) { minODA = d; bestOrigA = s; }
+        }
+        if (!bestOrigA) continue;
+
+        for (let j = 0; j < routes.length; j++) {
+          if (i === j) continue;
+          const rB = routes[j];
+          let bestDestB = null, minDDB = Infinity;
+          for (const s of rB.stops) {
+            const d = calculateHaversineDistance(destLat, destLng, s.lat, s.lng);
+            if (d <= MAX_WALK && d < minDDB) { minDDB = d; bestDestB = s; }
+          }
+          if (!bestDestB) continue;
+
+          let bestPair = null, minTD = Infinity;
+          for (const sA of rA.stops) {
+            if (sA.id === bestOrigA.id) continue;
+            for (const sB of rB.stops) {
+              if (sB.id === bestDestB.id) continue;
+              const td = calculateHaversineDistance(sA.lat, sA.lng, sB.lat, sB.lng);
+              if (td <= MAX_TRANSFER && td < minTD) {
+                minTD = td;
+                bestPair = { sA, sB, td };
+              }
+            }
+          }
+
+          if (bestPair) {
+            const { sA, sB, td } = bestPair;
+            const scA = Math.abs(sA.stopOrder - bestOrigA.stopOrder);
+            const scB = Math.abs(bestDestB.stopOrder - sB.stopOrder);
+            if (scA >= 1 && scB >= 1) {
+              const ow = Math.max(1, Math.round(minODA / 80));
+              const tA = Math.round(scA * 2.2) + 3;
+              const tw = Math.max(1, Math.round(td / 80));
+              const tB = Math.round(scB * 2.2);
+              const dw = Math.max(1, Math.round(minDDB / 80));
+              transferOptions.push({
+                id: `transfer-${rA.id}-${rB.id}`,
+                type: 'TRANSFER',
+                firstRoute: { id: rA.id, name: rA.name, color: rA.color, originStop: bestOrigA, transferStop: sA, stopsCount: scA },
+                transferNode: { fromStopName: sA.name, toStopName: sB.name, walkMeters: Math.round(td), walkMinutes: tw, nodeName: sA.name === sB.name ? sA.name : `${sA.name} ↔ ${sB.name}` },
+                secondRoute: { id: rB.id, name: rB.name, color: rB.color, transferStop: sB, destStop: bestDestB, stopsCount: scB },
+                originWalkMeters: Math.round(minODA),
+                transferWalkMeters: Math.round(td),
+                destWalkMeters: Math.round(minDDB),
+                totalWalkMeters: Math.round(minODA + td + minDDB),
+                totalStopsCount: scA + scB,
+                estimatedMinutes: ow + tA + tw + 4 + tB + dw,
+                instructions: [
+                  `Caminar ${Math.round(minODA)} m hacia "${bestOrigA.name}" (~${ow} min).`,
+                  `Abordar "${rA.name}" y avanzar ${scA} paradas (~${tA} min).`,
+                  `Bajar en "${sA.name}" y caminar ${Math.round(td)} m hacia "${sB.name}".`,
+                  `Tomar "${rB.name}" y avanzar ${scB} paradas (~${tB} min).`,
+                  `Descender en "${bestDestB.name}" y caminar ${Math.round(minDDB)} m (~${dw} min).`
+                ]
+              });
+            }
+          }
+        }
+      }
+
+      directOptions.sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
+      transferOptions.sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
+
+      return {
+        success: true,
+        data: {
+          directOptions: directOptions.slice(0, 5),
+          transferOptions: transferOptions.slice(0, 6),
+          directCount: directOptions.length,
+          transferCount: transferOptions.length
+        },
+        isDemoMode: true
+      };
+    }
+  },
+
+  /**
+   * Consulta alertas viales e incidentes registrados
+   */
+  async fetchIncidents() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/incidents`, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(3500)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Error al obtener incidentes`);
+      }
+
+      const json = await response.json();
+      return {
+        success: true,
+        data: json.data || [],
+        isDemoMode: false
+      };
+    } catch (err) {
+      console.warn('[Tuxtla-Rutas API] Usando alertas locales:', err.message);
+      return {
+        success: true,
+        data: demoIncidents,
+        isDemoMode: true
+      };
+    }
+  },
+
+  /**
+   * Reporta un nuevo incidente vial (pasajero o soporte)
+   */
+  async reportIncident(payload) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/incidents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(3500)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Error al reportar incidente`);
+      }
+
+      const json = await response.json();
+      return { success: true, data: json.data, isDemoMode: false };
+    } catch (err) {
+      console.warn('[Tuxtla-Rutas API] Guardando incidente localmente:', err.message);
+      const newInc = {
+        id: `inc-${Date.now()}`,
+        ...payload,
+        status: payload.createdByRole === 'USER' ? 'PENDING' : 'ACTIVE_ALERT',
+        createdAt: new Date().toISOString()
+      };
+      demoIncidents = [newInc, ...demoIncidents];
+      return { success: true, data: newInc, isDemoMode: true };
+    }
+  },
+
+  /**
+   * Actualiza el estado de un incidente (Soporte)
+   */
+  async updateIncidentStatus(id, { status, delayMinutes }) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/incidents/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ status, delayMinutes }),
+        signal: AbortSignal.timeout(3500)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Error al actualizar incidente`);
+      }
+
+      const json = await response.json();
+      return { success: true, data: json.data, isDemoMode: false };
+    } catch (err) {
+      demoIncidents = demoIncidents.map((i) =>
+        i.id === id ? { ...i, status: status || i.status, delayMinutes: delayMinutes ?? i.delayMinutes } : i
+      );
+      return { success: true, isDemoMode: true };
+    }
+  },
+
+  /**
+   * Actualiza configuración operativa de una ruta (Admin)
+   */
+  async updateRouteConfig(id, config) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/routes/${id}/config`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(config),
+        signal: AbortSignal.timeout(3500)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Error al actualizar ruta`);
+      }
+
+      const json = await response.json();
+      return { success: true, data: json.data, isDemoMode: false };
+    } catch (err) {
+      const r = BACKUP_ROUTES.find((item) => item.id === id);
+      if (r) {
+        if (config.frequencyMinutes !== undefined) r.scheduleInfo.frequencyMinutes = config.frequencyMinutes;
+        if (config.status !== undefined) r.scheduleInfo.status = config.status;
+        if (config.color !== undefined) r.color = config.color;
+      }
+      return { success: true, isDemoMode: true };
+    }
+  },
+
+  /**
+   * Despacha una nueva unidad colectiva (Admin)
+   */
+  async dispatchFleetUnit(payload) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/automation/fleet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(3500)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Error al despachar flota`);
+      }
+
+      const json = await response.json();
+      return { success: true, data: json.data, isDemoMode: false };
+    } catch (err) {
+      const { unitId, routeId, speedKmh = 30 } = payload;
+      const existingIdx = DEMO_UNITS_STATE.findIndex((u) => u.unitId === unitId);
+      const newUnit = {
+        unitId,
+        routeId: routeId || BACKUP_ROUTES[0].id,
+        currentStopIndex: 0,
+        nextStopIndex: 1,
+        direction: 1,
+        progress: 0.1,
+        status: 'IN_TRANSIT',
+        dwellRemainingSec: 0,
+        speedKmh
+      };
+      if (existingIdx >= 0) {
+        DEMO_UNITS_STATE[existingIdx] = { ...DEMO_UNITS_STATE[existingIdx], ...newUnit };
+      } else {
+        DEMO_UNITS_STATE.push(newUnit);
+      }
+      return { success: true, data: newUnit, isDemoMode: true };
+    }
+  },
+
   // Métodos de compatibilidad con código anterior
   async getRoutes() {
     return this.fetchRoutes();
@@ -632,3 +1001,4 @@ export const apiClient = {
     };
   }
 };
+

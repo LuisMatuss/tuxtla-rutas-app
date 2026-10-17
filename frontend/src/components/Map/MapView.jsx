@@ -1,10 +1,16 @@
 // Componente Cartográfico: Contenedor Leaflet interactivo para Tuxtla Gutiérrez
+// Integra visualización de 8 rutas, paradas, telemetría cinemática en vivo,
+// alertas viales, puntos personales (Casa/Escuela/Trabajo) y planificación de viajes.
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { RouteLayer } from './RouteLayer.jsx';
 import { StopMarkers } from './StopMarkers.jsx';
 import { LiveUnitsLayer } from './LiveUnitsLayer.jsx';
+import { PersonalPointsMarkers } from './PersonalPointsMarkers.jsx';
+import { RoadAlertMarkers } from './RoadAlertMarkers.jsx';
+import { PlannedTripLayer } from './PlannedTripLayer.jsx';
 
 const TUXTLA_CENTER = [16.7516, -93.1161];
 const DEFAULT_ZOOM = 13;
@@ -38,13 +44,16 @@ const BASEMAP_PROVIDERS = {
 };
 
 /**
- * Controlador de eventos del mapa: Clics para geolocalizar usuario
+ * Controlador de eventos del mapa: Clics para geolocalizar usuario o fijar coordenadas
  */
-function MapClickHandler({ onMapClick }) {
+function MapClickHandler({ onMapClick, pickingTarget, onPickCoordinate }) {
   useMapEvents({
     click(e) {
-      if (onMapClick) {
-        onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng });
+      const coords = { lat: e.latlng.lat, lng: e.latlng.lng };
+      if (pickingTarget && onPickCoordinate) {
+        onPickCoordinate(coords);
+      } else if (onMapClick) {
+        onMapClick(coords);
       }
     }
   });
@@ -54,7 +63,7 @@ function MapClickHandler({ onMapClick }) {
 /**
  * Controlador de cámara animada (flyTo y fitBounds suaves)
  */
-function MapCameraController({ selectedRoute, activeStop, userLocation }) {
+function MapCameraController({ selectedRoute, activeStop, userLocation, selectedTrip }) {
   const map = useMap();
 
   // Enfoque a parada individual
@@ -77,7 +86,7 @@ function MapCameraController({ selectedRoute, activeStop, userLocation }) {
 
   // Enfoque a ruta completa mediante bounding box
   useEffect(() => {
-    if (selectedRoute && !activeStop) {
+    if (selectedRoute && !activeStop && !selectedTrip) {
       const rawCoords =
         selectedRoute.geometry?.coordinates ||
         selectedRoute.coordinates ||
@@ -89,14 +98,14 @@ function MapCameraController({ selectedRoute, activeStop, userLocation }) {
         map.fitBounds(bounds, { padding: [50, 50], duration: 1.2 });
       }
     }
-  }, [selectedRoute, activeStop, map]);
+  }, [selectedRoute, activeStop, selectedTrip, map]);
 
   // Enfoque a ubicación de usuario recién seleccionada
   useEffect(() => {
-    if (userLocation && !activeStop && !selectedRoute) {
+    if (userLocation && !activeStop && !selectedRoute && !selectedTrip) {
       map.flyTo([userLocation.lat, userLocation.lng], 15, { duration: 1.0 });
     }
-  }, [userLocation, activeStop, selectedRoute, map]);
+  }, [userLocation, activeStop, selectedRoute, selectedTrip, map]);
 
   return null;
 }
@@ -108,6 +117,12 @@ export function MapView({
   activeStop = null,
   userLocation = null,
   units = [],
+  personalPoints = {},
+  incidents = [],
+  selectedTrip = null,
+  pickingTarget = null,
+  onPickCoordinate,
+  onCancelPicking,
   onMapClick,
   onSelectRoute,
   onSelectStop
@@ -143,8 +158,64 @@ export function MapView({
     return all;
   }, [routes, selectedRoute]);
 
+  // Nombre legible del objetivo de selección en mapa
+  const pickingLabel = useMemo(() => {
+    if (!pickingTarget) return '';
+    if (pickingTarget === 'casa') return '🏠 Mi Casa (Punto de Partida)';
+    if (pickingTarget === 'escuela') return '🎓 Escuela / UNACH';
+    if (pickingTarget === 'trabajo') return '💼 Mi Trabajo';
+    if (pickingTarget === 'incident') return '⚠️ Ubicación de la Alerta Vial';
+    return 'Punto de Referencia';
+  }, [pickingTarget]);
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      {/* Banner flotante de MODO SELECCIÓN / PICKING */}
+      {pickingTarget && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '16px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1100,
+            background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.96) 0%, rgba(15, 23, 42, 0.96) 100%)',
+            backdropFilter: 'blur(12px)',
+            border: '2px solid #60a5fa',
+            borderRadius: '24px',
+            padding: '8px 20px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            animation: 'pulse 2s infinite'
+          }}
+        >
+          <span style={{ fontSize: '16px' }}>📍</span>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
+            Haz clic en cualquier calle para fijar: <strong style={{ color: '#93c5fd' }}>{pickingLabel}</strong>
+          </span>
+          {onCancelPicking && (
+            <button
+              type="button"
+              onClick={onCancelPicking}
+              style={{
+                background: 'rgba(239, 68, 68, 0.25)',
+                border: '1px solid #ef4444',
+                color: '#fca5a5',
+                borderRadius: '12px',
+                padding: '3px 10px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Cancelar
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Selector Flotante de Capas en la esquina superior derecha */}
       <div
         style={{
@@ -268,11 +339,16 @@ export function MapView({
         />
 
         {/* Controladores de cámara y eventos */}
-        <MapClickHandler onMapClick={onMapClick} />
+        <MapClickHandler
+          onMapClick={onMapClick}
+          pickingTarget={pickingTarget}
+          onPickCoordinate={onPickCoordinate}
+        />
         <MapCameraController
           selectedRoute={selectedRoute}
           activeStop={activeStop}
           userLocation={userLocation}
+          selectedTrip={selectedTrip}
         />
 
         {/* Trazados vectoriales de rutas */}
@@ -293,8 +369,17 @@ export function MapView({
           onSelectStop={onSelectStop}
         />
 
+        {/* Marcadores de puntos personales: Casa, Escuela, Trabajo */}
+        <PersonalPointsMarkers personalPoints={personalPoints} />
+
+        {/* Marcadores de alertas viales activas */}
+        <RoadAlertMarkers incidents={incidents} routes={routes} />
+
         {/* Capa de telemetría de unidades colectivas en tiempo real */}
         <LiveUnitsLayer units={units} />
+
+        {/* Resaltado de viaje seleccionado (Directo o Trasbordo) */}
+        {selectedTrip && <PlannedTripLayer selectedTrip={selectedTrip} />}
       </MapContainer>
 
       {/* Indicador de ayuda flotante */}
@@ -318,9 +403,12 @@ export function MapView({
         }}
       >
         <span>💡</span>
-        <span>Haz clic en cualquier punto del mapa para encontrar paradas cercanas</span>
+        <span>
+          {pickingTarget
+            ? 'Haz clic sobre el mapa para fijar la coordenada'
+            : 'Haz clic en cualquier punto para encontrar paradas cercanas'}
+        </span>
       </div>
     </div>
   );
 }
-

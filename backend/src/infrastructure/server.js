@@ -4,8 +4,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { createRouteRouter, createStopsRouter } from './web/routes/route.routes.js';
+import { createRouteRouter, createStopsRouter, createTripsRouter } from './web/routes/route.routes.js';
 import { createAutomationRouter } from './web/routes/automation.routes.js';
+import { createIncidentsRouter } from './web/routes/incident.routes.js';
 import { errorHandler } from './web/errorHandler.js';
 
 dotenv.config();
@@ -37,7 +38,10 @@ app.get('/health', (req, res) => {
 // Montar rutas de la API bajo el prefijo /api
 app.use('/api/routes', createRouteRouter());
 app.use('/api/stops', createStopsRouter());
+app.use('/api/trips', createTripsRouter());
+app.use('/api/incidents', createIncidentsRouter());
 app.use('/api/automation', createAutomationRouter());
+
 
 // Manejador centralizado de errores
 app.use(errorHandler);
