@@ -1,6 +1,6 @@
 // Componente Raíz: Dashboard de Movilidad Urbana y GIS para Tuxtla Gutiérrez
 import React, { useState } from 'react';
-import { Bus, MapPin, Layers, RefreshCw, PanelLeftClose, PanelLeft, Clock } from 'lucide-react';
+import { Bus, MapPin, Layers, RefreshCw, PanelLeftClose, PanelLeft, Clock, Radio } from 'lucide-react';
 import { RouteSelector } from './components/Sidebar/RouteSelector.jsx';
 import { ScheduleInfo } from './components/Sidebar/ScheduleInfo.jsx';
 import { MapView } from './components/Map/MapView.jsx';
@@ -14,6 +14,7 @@ export default function App() {
     activeStop,
     userLocation,
     nearestStops,
+    telemetryUnits,
     loading,
     loadingNearest,
     isDemoMode,
@@ -168,6 +169,25 @@ export default function App() {
             <Layers size={13} />
             <span>Ver Todo</span>
           </button>
+
+          {/* Badge de Telemetría GPS en vivo */}
+          <div
+            style={{
+              padding: '5px 10px',
+              borderRadius: '20px',
+              background: 'rgba(37, 99, 235, 0.15)',
+              border: '1px solid rgba(37, 99, 235, 0.4)',
+              color: '#60a5fa',
+              fontSize: '11px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Radio size={12} color="#60a5fa" />
+            <span>{telemetryUnits.length} combis en vivo</span>
+          </div>
 
           {/* Badge de Estado del Backend / Modo Demo */}
           <div
@@ -328,6 +348,7 @@ export default function App() {
             selectedRoute={selectedRoute}
             activeStop={activeStop}
             userLocation={userLocation}
+            units={telemetryUnits}
             onMapClick={setUserLocation}
             onSelectRoute={handleSelectRoute}
             onSelectStop={selectStop}

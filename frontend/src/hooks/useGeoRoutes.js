@@ -1,4 +1,4 @@
-// Hook Personalizado: Gestión del estado geoespacial, rutas activas, paradas y proximidad
+// Hook Personalizado: Gestión del estado geoespacial, rutas activas, paradas, proximidad y telemetría en vivo
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiClient } from '../api/client.js';
 
@@ -8,6 +8,7 @@ export function useGeoRoutes() {
   const [activeStop, setActiveStop] = useState(null);
   const [userLocation, setUserLocationState] = useState(null);
   const [nearestStops, setNearestStops] = useState([]);
+  const [telemetryUnits, setTelemetryUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingNearest, setLoadingNearest] = useState(false);
   const [error, setError] = useState(null);
@@ -20,7 +21,9 @@ export function useGeoRoutes() {
     try {
       const response = await apiClient.fetchRoutes();
       setRoutes(response.data || []);
-      setIsDemoMode(response.isDemoMode || false);
+      if (response.isDemoMode !== undefined) {
+        setIsDemoMode(response.isDemoMode);
+      }
     } catch (err) {
       console.error('[useGeoRoutes] Error al cargar rutas:', err);
       setError(err.message || 'Error al conectar con el servicio de rutas');
@@ -29,9 +32,29 @@ export function useGeoRoutes() {
     }
   }, []);
 
+  // Sondeo de telemetría en tiempo real (cada 4 segundos)
+  const pollTelemetry = useCallback(async () => {
+    try {
+      const res = await apiClient.fetchTelemetry();
+      if (res.data && Array.isArray(res.data)) {
+        setTelemetryUnits(res.data);
+      }
+    } catch (err) {
+      console.warn('[useGeoRoutes] Error al consultar telemetría en vivo:', err);
+    }
+  }, []);
+
   useEffect(() => {
     loadRoutes();
-  }, [loadRoutes]);
+    pollTelemetry();
+
+    // Intervalo de telemetría cada 4 segundos
+    const timer = setInterval(() => {
+      pollTelemetry();
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [loadRoutes, pollTelemetry]);
 
   // Ruta activa según selectedRouteId
   const selectedRoute = useMemo(() => {
@@ -113,6 +136,7 @@ export function useGeoRoutes() {
     activeStop,
     userLocation,
     nearestStops,
+    telemetryUnits,
     loading,
     loadingNearest,
     error,
@@ -123,6 +147,7 @@ export function useGeoRoutes() {
     simulateTuxtlaLocation,
     clearUserLocation,
     reloadRoutes: loadRoutes,
+    refreshTelemetry: pollTelemetry,
     // Compatibilidad
     setSelectedRoute: selectRoute
   };

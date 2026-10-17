@@ -1,6 +1,6 @@
 // Cliente API HTTP con Resiliencia Offline / Demo para Tuxtla-Rutas
 // Si el backend o contenedor de base de datos no está disponible, activa automáticamente
-// el dataset de respaldo con datos reales de Tuxtla Gutiérrez y cálculo Haversine en memoria.
+// el dataset de respaldo con datos reales de Tuxtla Gutiérrez, cálculo Haversine y telemetría simulada.
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -250,6 +250,10 @@ export const BACKUP_ROUTES = [
   }
 ];
 
+// Pasos de animación simulada en memoria para modo demo
+let demoStep1 = 4;
+let demoStep2 = 4;
+
 export const apiClient = {
   /**
    * Obtiene la lista completa de rutas con su trazado y paradas
@@ -321,7 +325,6 @@ export const apiClient = {
    */
   async fetchNearestStops({ lat, lng, radius = 1500, limit = 5 }) {
     try {
-      // Intentar primero con el endpoint /api/stops/nearest
       const url = `${API_BASE_URL}/stops/nearest?lat=${lat}&lng=${lng}&radius=${radius}&limit=${limit}`;
       const response = await fetch(url, {
         headers: { 'Accept': 'application/json' },
@@ -341,7 +344,6 @@ export const apiClient = {
     } catch (err) {
       console.warn('[Tuxtla-Rutas API] Calculando paradas cercanas localmente (modo Demo / Haversine):', err.message);
 
-      // Algoritmo de proximidad Haversine en memoria sobre todas las paradas del dataset de respaldo
       const allStops = [];
       for (const route of BACKUP_ROUTES) {
         for (const stop of route.stops) {
@@ -357,11 +359,9 @@ export const apiClient = {
         }
       }
 
-      // Ordenar por distancia ascendente y limitar
       allStops.sort((a, b) => a.distanceMeters - b.distanceMeters);
       const sliced = allStops.slice(0, limit);
 
-      // Enriquecer con tiempo de caminata y próximo colectivo
       const enriched = sliced.map((stop, index) => ({
         ...stop,
         walkingTimeMinutes: Math.max(1, Math.ceil(stop.distanceMeters / 80)),
@@ -376,10 +376,71 @@ export const apiClient = {
     }
   },
 
+  /**
+   * Obtiene la telemetría en tiempo real de las unidades colectivas
+   */
+  async fetchTelemetry() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/automation/telemetry`, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(3500)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Error al consultar telemetría`);
+      }
+
+      const json = await response.json();
+      if (Array.isArray(json.data) && json.data.length > 0) {
+        return {
+          success: true,
+          data: json.data,
+          isDemoMode: false
+        };
+      }
+      throw new Error('Sin datos en backend');
+    } catch (err) {
+      // Fallback simulado en modo demo: avanza las combis por sus waypoints
+      demoStep1 = (demoStep1 + 1) % BACKUP_ROUTES[0].geometry.coordinates.length;
+      demoStep2 = (demoStep2 + 1) % BACKUP_ROUTES[1].geometry.coordinates.length;
+
+      const p1 = BACKUP_ROUTES[0].geometry.coordinates[demoStep1];
+      const p2 = BACKUP_ROUTES[1].geometry.coordinates[demoStep2];
+
+      const simulatedUnits = [
+        {
+          unitId: 'TX-101',
+          routeId: 'a0000001-0000-0000-0000-000000000001',
+          routeName: 'Ruta 1 - Centro / Terán',
+          routeColor: '#2563EB',
+          lat: p1[1],
+          lng: p1[0],
+          speedKmh: Math.floor(Math.random() * 12) + 26,
+          timestamp: new Date().toISOString()
+        },
+        {
+          unitId: 'TX-204',
+          routeId: 'a0000002-0000-0000-0000-000000000002',
+          routeName: 'Ruta 2 - Sur / Poniente',
+          routeColor: '#10B981',
+          lat: p2[1],
+          lng: p2[0],
+          speedKmh: Math.floor(Math.random() * 10) + 22,
+          timestamp: new Date().toISOString()
+        }
+      ];
+
+      return {
+        success: true,
+        data: simulatedUnits,
+        isDemoMode: true
+      };
+    }
+  },
+
   // Métodos de compatibilidad con código anterior
   async getRoutes() {
-    const res = await this.fetchRoutes();
-    return res;
+    return this.fetchRoutes();
   },
 
   async getNearestStop(lat, lng, radius = 1000) {

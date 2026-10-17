@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { RouteLayer } from './RouteLayer.jsx';
 import { StopMarkers } from './StopMarkers.jsx';
+import { LiveUnitsLayer } from './LiveUnitsLayer.jsx';
 
 const TUXTLA_CENTER = [16.7516, -93.1161];
 const DEFAULT_ZOOM = 13;
@@ -78,6 +79,7 @@ export function MapView({
   selectedRoute = null,
   activeStop = null,
   userLocation = null,
+  units = [],
   onMapClick,
   onSelectRoute,
   onSelectStop
@@ -147,6 +149,9 @@ export function MapView({
           searchRadius={1500}
           onSelectStop={onSelectStop}
         />
+
+        {/* Capa de telemetría de unidades colectivas en tiempo real */}
+        <LiveUnitsLayer units={units} />
       </MapContainer>
 
       {/* Indicador de ayuda flotante */}

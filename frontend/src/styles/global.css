@@ -115,3 +115,19 @@ body {
   background-color: rgba(30, 41, 59, 1) !important;
   color: #38bdf8 !important;
 }
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
