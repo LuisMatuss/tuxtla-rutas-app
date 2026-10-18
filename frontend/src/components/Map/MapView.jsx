@@ -67,13 +67,65 @@ function MapClickHandler({ onMapClick, pickingTarget, onPickCoordinate }) {
 }
 
 /**
- * Controlador de cámara animada (flyTo y fitBounds suaves)
+ * Controlador de cámara animada (flyTo y fitBounds seguros y estables)
  */
-function MapCameraController({ selectedRoute, activeStop, userLocation, selectedTrip }) {
+function MapCameraController({ selectedRouteId, routes = [], activeStop, userLocation, selectedTrip }) {
   const map = useMap();
+  const prevRouteIdRef = React.useRef(null);
+  const prevStopIdRef = React.useRef(null);
+  const prevUserLocRef = React.useRef(null);
 
-  // Enfoque a parada individual
+  // Enfoque a ruta completa ÚNICAMENTE cuando cambia el valor primitivo selectedRouteId
   useEffect(() => {
+    if (prevRouteIdRef.current === selectedRouteId) {
+      return;
+    }
+    prevRouteIdRef.current = selectedRouteId;
+
+    if (!selectedRouteId || activeStop || selectedTrip) {
+      return;
+    }
+
+    const route = routes.find((r) => r.id === selectedRouteId);
+    if (!route) return;
+
+    const rawCoords = route.geometry?.coordinates || route.coordinates || [];
+    if (!Array.isArray(rawCoords) || rawCoords.length === 0) return;
+
+    try {
+      // Invertir estrictamente GeoJSON [lng, lat] -> Leaflet [lat, lng]
+      const leafletPositions = rawCoords
+        .map((coord) => {
+          if (!Array.isArray(coord) || coord.length < 2) return null;
+          const lng = Number(coord[0]);
+          const lat = Number(coord[1]);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+          return [lat, lng];
+        })
+        .filter(Boolean);
+
+      if (leafletPositions.length === 0) return;
+
+      const bounds = L.latLngBounds(leafletPositions);
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, {
+          padding: [40, 40],
+          maxZoom: 15,
+          animate: true,
+          duration: 0.8
+        });
+      }
+    } catch (err) {
+      console.warn('[MapCameraController] Error al enfocar ruta seleccionada:', err);
+    }
+  }, [selectedRouteId, routes, activeStop, selectedTrip, map]);
+
+  // Enfoque a parada individual cuando cambia activeStop
+  useEffect(() => {
+    const stopId = activeStop?.id;
+    if (prevStopIdRef.current === stopId) return;
+    prevStopIdRef.current = stopId;
+
     if (activeStop) {
       const lat =
         activeStop.lat !== undefined
@@ -85,33 +137,29 @@ function MapCameraController({ selectedRoute, activeStop, userLocation, selected
           : activeStop.geometry?.coordinates?.[0];
 
       if (lat && lng && Number.isFinite(lat) && Number.isFinite(lng)) {
-        map.flyTo([lat, lng], 16, { duration: 1.2 });
+        try {
+          map.flyTo([lat, lng], 16, { duration: 0.8 });
+        } catch (err) {
+          console.warn('[MapCameraController] Error al volar a parada:', err);
+        }
       }
     }
   }, [activeStop, map]);
 
-  // Enfoque a ruta completa mediante bounding box
+  // Enfoque a ubicación de usuario recién seleccionada
+  const userLocKey = userLocation ? `${userLocation.lat},${userLocation.lng}` : null;
   useEffect(() => {
-    if (selectedRoute && !activeStop && !selectedTrip) {
-      const rawCoords =
-        selectedRoute.geometry?.coordinates ||
-        selectedRoute.coordinates ||
-        [];
+    if (prevUserLocRef.current === userLocKey) return;
+    prevUserLocRef.current = userLocKey;
 
-      if (Array.isArray(rawCoords) && rawCoords.length > 0) {
-        const leafletPositions = rawCoords.map(([lng, lat]) => [lat, lng]);
-        const bounds = L.latLngBounds(leafletPositions);
-        map.fitBounds(bounds, { padding: [50, 50], duration: 1.2 });
+    if (userLocation && !activeStop && !selectedRouteId && !selectedTrip) {
+      try {
+        map.flyTo([userLocation.lat, userLocation.lng], 15, { duration: 0.8 });
+      } catch (err) {
+        console.warn('[MapCameraController] Error al volar a ubicación de usuario:', err);
       }
     }
-  }, [selectedRoute, activeStop, selectedTrip, map]);
-
-  // Enfoque a ubicación de usuario recién seleccionada
-  useEffect(() => {
-    if (userLocation && !activeStop && !selectedRoute && !selectedTrip) {
-      map.flyTo([userLocation.lat, userLocation.lng], 15, { duration: 1.0 });
-    }
-  }, [userLocation, activeStop, selectedRoute, selectedTrip, map]);
+  }, [userLocKey, userLocation, activeStop, selectedRouteId, selectedTrip, map]);
 
   return null;
 }
@@ -139,12 +187,8 @@ export function MapView({
 
   const currentBasemap = BASEMAP_PROVIDERS[activeBasemapKey] || BASEMAP_PROVIDERS.osm;
 
-  // Paradas visibles según la selección actual
-  const visibleStops = useMemo(() => {
-    if (selectedRoute && selectedRoute.stops && selectedRoute.stops.length > 0) {
-      return selectedRoute.stops;
-    }
-    // Si no hay ruta seleccionada, muestra todas las paradas de todas las rutas
+  // Paradas de las 8 rutas: se mantienen todas en el DOM para que ninguna desaparezca al seleccionar ruta
+  const allStops = useMemo(() => {
     const all = [];
     const seenIds = new Set();
     for (const r of routes) {
@@ -154,6 +198,7 @@ export function MapView({
             seenIds.add(s.id);
             all.push({
               ...s,
+              routeId: s.routeId || r.id,
               routeName: r.name,
               routeColor: r.color
             });
@@ -162,7 +207,7 @@ export function MapView({
       }
     }
     return all;
-  }, [routes, selectedRoute]);
+  }, [routes]);
 
   // Nombre legible del objetivo de selección en mapa
   const pickingLabel = useMemo(() => {
@@ -354,7 +399,8 @@ export function MapView({
           onPickCoordinate={onPickCoordinate}
         />
         <MapCameraController
-          selectedRoute={selectedRoute}
+          selectedRouteId={selectedRouteId}
+          routes={routes}
           activeStop={activeStop}
           userLocation={userLocation}
           selectedTrip={selectedTrip}
@@ -367,9 +413,9 @@ export function MapView({
           onSelectRoute={onSelectRoute}
         />
 
-        {/* Marcadores de paradas y usuario */}
+        {/* Marcadores de paradas y usuario (mantiene las 8 rutas visibles) */}
         <StopMarkers
-          stops={visibleStops}
+          stops={allStops}
           routes={routes}
           selectedRouteId={selectedRouteId}
           activeStop={activeStop}

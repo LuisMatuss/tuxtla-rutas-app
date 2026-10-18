@@ -91,10 +91,10 @@ export function LiveUnitsLayer({ units = [] }) {
   return (
     <>
       {units.map((unit) => {
-        const displayLat = unit.animLat !== undefined ? unit.animLat : unit.lat;
-        const displayLng = unit.animLng !== undefined ? unit.animLng : unit.lng;
+        const displayLat = Number(unit.animLat !== undefined ? unit.animLat : unit.lat);
+        const displayLng = Number(unit.animLng !== undefined ? unit.animLng : unit.lng);
 
-        if (!displayLat || !displayLng || !Number.isFinite(displayLat) || !Number.isFinite(displayLng)) {
+        if (!Number.isFinite(displayLat) || !Number.isFinite(displayLng)) {
           return null;
         }
 

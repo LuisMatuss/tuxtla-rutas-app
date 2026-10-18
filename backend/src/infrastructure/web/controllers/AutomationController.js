@@ -164,7 +164,7 @@ export class AutomationController {
         let distRemaining = speedMps * TICK_SECONDS;
 
         while (distRemaining > 0) {
-          let vIdx = unit.currentVertexIndex ?? 0;
+          let vIdx = Math.max(0, Math.min(coords.length - 1, unit.currentVertexIndex ?? 0));
           let nextIdx = vIdx + unit.direction;
 
           // Si alcanza el final o inicio de la ruta, invertir sentido y entrar en parada terminal
@@ -179,6 +179,7 @@ export class AutomationController {
 
           const A = coords[vIdx]; // [lng, lat]
           const B = coords[nextIdx]; // [lng, lat]
+          if (!A || !B || !Array.isArray(A) || !Array.isArray(B)) break;
           const segLen = calculateHaversineDistance(A[1], A[0], B[1], B[0]);
 
           if (segLen < 0.1) {

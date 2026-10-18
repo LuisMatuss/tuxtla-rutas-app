@@ -1,5 +1,5 @@
 // Hook Personalizado: Gestión del estado geoespacial, rutas activas, paradas, proximidad y telemetría en vivo
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { apiClient, calculateHaversineDistance, BACKUP_ROUTES } from '../api/client.js';
 
 export function useGeoRoutes() {
@@ -14,99 +14,138 @@ export function useGeoRoutes() {
   const [error, setError] = useState(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
 
-  // Carga inicial de rutas
+  // Referencia mutable a las rutas para que el motor cinemático de 250ms siempre acceda a las coordenadas viales más recientes sin reiniciar intervalos
+  const routesRef = useRef(routes);
+  useEffect(() => {
+    routesRef.current = routes;
+  }, [routes]);
+
+  // Carga inicial de rutas (solo se ejecuta al montar o recargar explícitamente)
   const loadRoutes = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await apiClient.fetchRoutes();
-      setRoutes(response.data || []);
+      const loaded = response.data && response.data.length > 0 ? response.data : BACKUP_ROUTES;
+      setRoutes(loaded);
+      routesRef.current = loaded;
       if (response.isDemoMode !== undefined) {
         setIsDemoMode(response.isDemoMode);
       }
     } catch (err) {
       console.error('[useGeoRoutes] Error al cargar rutas:', err);
       setError(err.message || 'Error al conectar con el servicio de rutas');
+      setRoutes(BACKUP_ROUTES);
+      routesRef.current = BACKUP_ROUTES;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Sondeo de telemetría en tiempo real (cada 2 segundos)
+  // Sondeo de telemetría en tiempo real desde el backend (cada 2.5s)
   const pollTelemetry = useCallback(async () => {
     try {
       const res = await apiClient.fetchTelemetry();
-      if (res.data && Array.isArray(res.data)) {
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
         setTelemetryUnits((prevUnits) => {
-          if (!prevUnits || prevUnits.length === 0) return res.data;
+          if (!prevUnits || prevUnits.length === 0) {
+            return res.data.map((u) => ({
+              ...u,
+              lat: Number(u.lat),
+              lng: Number(u.lng),
+              animLat: Number(u.lat),
+              animLng: Number(u.lng)
+            }));
+          }
+
           const prevMap = new Map(prevUnits.map((u) => [u.unitId, u]));
           return res.data.map((fresh) => {
             const prev = prevMap.get(fresh.unitId);
+            const freshLat = Number(fresh.lat);
+            const freshLng = Number(fresh.lng);
+
+            // Sincronizar coordenadas autoritativas asegurando que sean números válidos
+            const validLat = Number.isFinite(freshLat) ? freshLat : prev?.lat;
+            const validLng = Number.isFinite(freshLng) ? freshLng : prev?.lng;
+
             return {
               ...fresh,
-              currentVertexIndex: prev?.currentVertexIndex !== undefined ? prev.currentVertexIndex : fresh.currentVertexIndex,
-              segmentProgress: prev?.segmentProgress !== undefined ? prev.segmentProgress : fresh.segmentProgress,
-              targetStopIndex: prev?.targetStopIndex !== undefined ? prev.targetStopIndex : fresh.targetStopIndex,
-              animLat: prev?.animLat || fresh.lat,
-              animLng: prev?.animLng || fresh.lng
+              lat: validLat,
+              lng: validLng,
+              animLat: validLat,
+              animLng: validLng,
+              currentVertexIndex: fresh.currentVertexIndex !== undefined ? fresh.currentVertexIndex : prev?.currentVertexIndex,
+              segmentProgress: fresh.segmentProgress !== undefined ? fresh.segmentProgress : prev?.segmentProgress,
+              targetStopIndex: fresh.targetStopIndex !== undefined ? fresh.targetStopIndex : prev?.targetStopIndex
             };
           });
         });
       }
     } catch (err) {
-      console.warn('[useGeoRoutes] Error al consultar telemetría en vivo:', err);
+      console.warn('[useGeoRoutes] Error al consultar telemetría:', err);
     }
   }, []);
 
+  // 1. Efecto de carga inicial de rutas
   useEffect(() => {
     loadRoutes();
-    pollTelemetry();
+  }, [loadRoutes]);
 
-    // Sondeo de servidor cada 2 segundos
+  // 2. Efecto de sondeo continuo del servidor
+  useEffect(() => {
+    pollTelemetry();
     const pollTimer = setInterval(() => {
       pollTelemetry();
-    }, 2000);
+    }, 2500);
 
-    // Motor cinemático en el cliente: avanza vértice por vértice sobre las calles de Tuxtla cada 250ms (~30 km/h)
+    return () => {
+      clearInterval(pollTimer);
+    };
+  }, [pollTelemetry]);
+
+  // 3. Motor cinemático local fluido (250ms): avanza vértice por vértice a ~30 km/h y gestiona paradas de 15s
+  useEffect(() => {
     let lastTick = Date.now();
+
     const animTimer = setInterval(() => {
       const now = Date.now();
-      const dt = Math.min(1.0, Math.max(0.1, (now - lastTick) / 1000));
+      const dt = Math.min(0.5, Math.max(0.1, (now - lastTick) / 1000));
       lastTick = now;
 
       setTelemetryUnits((prevUnits) => {
         if (!prevUnits || prevUnits.length === 0) return prevUnits;
 
-        return prevUnits.map((unit) => {
-          const route =
-            routes.find((r) => r.id === unit.routeId) ||
-            BACKUP_ROUTES.find((r) => r.id === unit.routeId);
+        const currentRoutes = routesRef.current && routesRef.current.length > 0 ? routesRef.current : BACKUP_ROUTES;
+        const routesMap = new Map(currentRoutes.map((r) => [r.id, r]));
 
-          if (!route || !route.stops || route.stops.length < 2) return unit;
+        let hasChanged = false;
 
-          const coords = route.geometry?.coordinates || [];
-          if (coords.length < 2) return unit;
+        const updatedUnits = prevUnits.map((unit) => {
+          const route = routesMap.get(unit.routeId);
+          if (!route) return unit;
 
-          const stopIndices = route.stopVertexIndices || [];
-          const stops = route.stops;
+          const coords = route.geometry?.coordinates;
+          if (!Array.isArray(coords) || coords.length < 2) return unit;
+
+          const stops = Array.isArray(route.stops) ? route.stops : [];
 
           // ESTADO 1: Combi detenida subiendo pasaje en parada oficial (15 segundos)
           if (unit.status === 'BOARDING') {
             const remaining = Math.max(0, (unit.dwellRemainingSec || 15) - dt);
 
             if (remaining <= 0) {
-              // Fin de la cuenta regresiva: Reanuda marcha sobre los vértices
+              // Fin de la parada: reanuda marcha hacia la siguiente parada
+              hasChanged = true;
               let proposed = (unit.targetStopIndex ?? 1) + (unit.direction || 1);
               let dir = unit.direction || 1;
               if (proposed >= stops.length) {
                 dir = -1;
-                proposed = stops.length - 2;
+                proposed = Math.max(0, stops.length - 2);
               } else if (proposed < 0) {
                 dir = 1;
-                proposed = 1;
+                proposed = Math.min(stops.length - 1, 1);
               }
 
-              const nextVertex = stopIndices[unit.targetStopIndex] ?? unit.currentVertexIndex;
               const nextStop = stops[proposed];
 
               return {
@@ -118,34 +157,31 @@ export function useGeoRoutes() {
                 targetStopIndex: proposed,
                 nextStopIndex: proposed,
                 direction: dir,
-                currentVertexIndex: nextVertex,
                 segmentProgress: 0.0,
                 locationName: `En ruta hacia ${nextStop?.name || 'siguiente parada'}`
               };
             }
 
-            const currentStop = stops[unit.currentStopIndex] || stops[0];
+            hasChanged = true;
             return {
               ...unit,
               dwellRemainingSec: remaining,
               speedKmh: 0,
-              animLat: unit.lat || currentStop.lat,
-              animLng: unit.lng || currentStop.lng,
               status: 'BOARDING',
               locationName: '⏸️ Subiendo pasaje'
             };
           }
 
-          // ESTADO 2: En tránsito sobre los vértices de las calles a ~30 km/h
-          const speedKmh = unit.speedKmh || (Math.floor(Math.random() * 5) + 28);
-          const speedMps = (speedKmh * 1000) / 3600;
+          // ESTADO 2: En tránsito fluido vértice a vértice a ~30 km/h
+          const speedKmh = unit.speedKmh && unit.speedKmh > 0 ? unit.speedKmh : 30;
+          const speedMps = (speedKmh * 1000) / 3600; // ~8.33 m/s
           let distRemaining = speedMps * dt;
 
-          let vIdx = unit.currentVertexIndex ?? 0;
+          let vIdx = Math.max(0, Math.min(coords.length - 1, unit.currentVertexIndex ?? 0));
           let segProg = unit.segmentProgress || 0.0;
           let dir = unit.direction || 1;
-          let currentLat = unit.lat || coords[vIdx][1];
-          let currentLng = unit.lng || coords[vIdx][0];
+          let currentLat = Number.isFinite(unit.lat) ? unit.lat : coords[vIdx][1];
+          let currentLng = Number.isFinite(unit.lng) ? unit.lng : coords[vIdx][0];
           let isBoardingNow = false;
           let dwellSec = 0;
           let newTargetStopIdx = unit.targetStopIndex ?? 1;
@@ -160,10 +196,11 @@ export function useGeoRoutes() {
               break;
             }
 
-            const A = coords[vIdx]; // [lng, lat]
-            const B = coords[nextIdx]; // [lng, lat]
-            const segLen = calculateHaversineDistance(A[1], A[0], B[1], B[0]);
+            const A = coords[vIdx];
+            const B = coords[nextIdx];
+            if (!A || !B || !Array.isArray(A) || !Array.isArray(B)) break;
 
+            const segLen = calculateHaversineDistance(A[1], A[0], B[1], B[0]);
             if (segLen < 0.1) {
               vIdx = nextIdx;
               segProg = 0.0;
@@ -196,24 +233,21 @@ export function useGeoRoutes() {
               currentLat = B[1];
               currentLng = B[0];
 
-              // Comprobar si alcanzó el vértice o está a <20m de parada
-              const targetStopVertex = stopIndices[newTargetStopIdx] ?? -1;
               const targetStop = stops[newTargetStopIdx];
-              const reachedVertex = vIdx === targetStopVertex;
-              const nearStop = targetStop && calculateHaversineDistance(B[1], B[0], targetStop.lat, targetStop.lng) <= 20;
-
-              if (reachedVertex || nearStop) {
-                isBoardingNow = true;
-                dwellSec = 15;
-                if (targetStop) {
+              if (targetStop) {
+                const nearStop = calculateHaversineDistance(B[1], B[0], targetStop.lat, targetStop.lng) <= 20;
+                if (nearStop) {
+                  isBoardingNow = true;
+                  dwellSec = 15;
                   currentLat = targetStop.lat;
                   currentLng = targetStop.lng;
+                  break;
                 }
-                break;
               }
             }
           }
 
+          hasChanged = true;
           const targetStop = stops[newTargetStopIdx];
           const nextStopName = targetStop?.name || 'Siguiente parada';
 
@@ -234,15 +268,15 @@ export function useGeoRoutes() {
             locationName: isBoardingNow ? '⏸️ Subiendo pasaje' : `En ruta hacia ${nextStopName}`
           };
         });
+
+        return hasChanged ? updatedUnits : prevUnits;
       });
     }, 250);
 
     return () => {
-      clearInterval(pollTimer);
       clearInterval(animTimer);
     };
-  }, [loadRoutes, pollTelemetry, routes]);
-
+  }, []);
 
   // Ruta activa según selectedRouteId
   const selectedRoute = useMemo(() => {
@@ -336,7 +370,6 @@ export function useGeoRoutes() {
     clearUserLocation,
     reloadRoutes: loadRoutes,
     refreshTelemetry: pollTelemetry,
-    // Compatibilidad
     setSelectedRoute: selectRoute
   };
 }

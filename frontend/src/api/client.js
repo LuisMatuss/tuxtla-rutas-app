@@ -12640,7 +12640,7 @@ function advanceDemoKinematics() {
     let distRemaining = speedMps * dt;
 
     while (distRemaining > 0) {
-      let vIdx = u.currentVertexIndex ?? 0;
+      let vIdx = Math.max(0, Math.min(coords.length - 1, u.currentVertexIndex ?? 0));
       let nextIdx = vIdx + u.direction;
 
       if (nextIdx < 0 || nextIdx >= coords.length) {
@@ -12654,6 +12654,7 @@ function advanceDemoKinematics() {
 
       const A = coords[vIdx]; // [lng, lat]
       const B = coords[nextIdx]; // [lng, lat]
+      if (!A || !B || !Array.isArray(A) || !Array.isArray(B)) break;
       const segLen = calculateHaversineDistance(A[1], A[0], B[1], B[0]);
 
       if (segLen < 0.1) {

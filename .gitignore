@@ -63,3 +63,9 @@ lerna-debug.log*
 *.sw?
 .DS_Store
 Thumbs.db
+
+# Herramientas de agentes e IDE local
+.agent/
+.agents/
+.codex/
+.gemini/
