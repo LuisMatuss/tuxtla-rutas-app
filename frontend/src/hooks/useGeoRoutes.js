@@ -103,6 +103,48 @@ export function useGeoRoutes() {
     };
   }, [pollTelemetry]);
 
+  // 2 rutas por defecto activas en el mapa al abrir para una vista limpia (Ruta 1 y Ruta 43)
+  const [visibleRouteIds, setVisibleRouteIds] = useState([
+    'a0000001-0000-0000-0000-000000000001',
+    'a0000003-0000-0000-0000-000000000003'
+  ]);
+
+  // Filtro de sentido de circulación: 'ALL' (Ida y Vuelta), 'IDA' (Solo Ida), 'VUELTA' (Solo Vuelta)
+  const [directionFilter, setDirectionFilter] = useState('ALL');
+
+  // Alternar visibilidad de una ruta específica
+  const toggleRouteVisibility = useCallback((routeId) => {
+    setVisibleRouteIds((prev) => {
+      if (prev.includes(routeId)) {
+        return prev.filter((id) => id !== routeId);
+      }
+      return [...prev, routeId];
+    });
+  }, []);
+
+  // Mostrar todas las rutas
+  const showAllRoutes = useCallback(() => {
+    const allIds = (routesRef.current && routesRef.current.length > 0 ? routesRef.current : BACKUP_ROUTES).map((r) => r.id);
+    setVisibleRouteIds(allIds);
+  }, []);
+
+  // Limpiar mapa (ninguna ruta visible)
+  const clearAllRoutes = useCallback(() => {
+    setVisibleRouteIds([]);
+  }, []);
+
+  // Mostrar rutas favoritas (por defecto Ruta 1 y Ruta 43)
+  const showFavoriteRoutes = useCallback((favoriteIds = []) => {
+    if (Array.isArray(favoriteIds) && favoriteIds.length > 0) {
+      setVisibleRouteIds(favoriteIds);
+    } else {
+      setVisibleRouteIds([
+        'a0000001-0000-0000-0000-000000000001',
+        'a0000003-0000-0000-0000-000000000003'
+      ]);
+    }
+  }, []);
+
   // 3. Motor cinemático local fluido (250ms): avanza vértice por vértice a ~30 km/h y gestiona paradas de 15s
   useEffect(() => {
     let lastTick = Date.now();
@@ -124,26 +166,40 @@ export function useGeoRoutes() {
           const route = routesMap.get(unit.routeId);
           if (!route) return unit;
 
-          const coords = route.geometry?.coordinates;
+          const isVuelta = unit.directionType === 'VUELTA';
+          const coords = isVuelta
+            ? (route.inboundGeometry?.coordinates || route.geometry?.coordinates)
+            : (route.outboundGeometry?.coordinates || route.geometry?.coordinates);
+
           if (!Array.isArray(coords) || coords.length < 2) return unit;
 
-          const stops = Array.isArray(route.stops) ? route.stops : [];
+          const stops = isVuelta
+            ? (route.returnStops || [...(route.stops || [])].reverse())
+            : (Array.isArray(route.stops) ? route.stops : []);
+
+          const stopIndices = isVuelta
+            ? (route.inboundStopIndices || [])
+            : (route.outboundStopIndices || route.stopVertexIndices || []);
+
+          if (stops.length < 2) return unit;
 
           // ESTADO 1: Combi detenida subiendo pasaje en parada oficial (15 segundos)
           if (unit.status === 'BOARDING') {
             const remaining = Math.max(0, (unit.dwellRemainingSec || 15) - dt);
 
             if (remaining <= 0) {
-              // Fin de la parada: reanuda marcha hacia la siguiente parada
               hasChanged = true;
-              let proposed = (unit.targetStopIndex ?? 1) + (unit.direction || 1);
-              let dir = unit.direction || 1;
+              let proposed = (unit.targetStopIndex ?? 1) + 1;
+              let nextVIdx = 0;
+              let currentS = unit.targetStopIndex ?? 1;
+
               if (proposed >= stops.length) {
-                dir = -1;
-                proposed = Math.max(0, stops.length - 2);
-              } else if (proposed < 0) {
-                dir = 1;
-                proposed = Math.min(stops.length - 1, 1);
+                // Fin del circuito: reiniciar desde el inicio del trazado
+                currentS = 0;
+                proposed = 1;
+                nextVIdx = 0;
+              } else {
+                nextVIdx = stopIndices[currentS] ?? (unit.currentVertexIndex || 0);
               }
 
               const nextStop = stops[proposed];
@@ -153,12 +209,14 @@ export function useGeoRoutes() {
                 status: 'IN_TRANSIT',
                 dwellRemainingSec: 0,
                 speedKmh: Math.floor(Math.random() * 5) + 28, // ~30 km/h
-                currentStopIndex: unit.targetStopIndex,
+                currentStopIndex: currentS,
                 targetStopIndex: proposed,
                 nextStopIndex: proposed,
-                direction: dir,
+                currentVertexIndex: nextVIdx,
                 segmentProgress: 0.0,
-                locationName: `En ruta hacia ${nextStop?.name || 'siguiente parada'}`
+                currentStopName: stops[currentS]?.name || unit.currentStopName,
+                nextStopName: nextStop?.name || 'Siguiente parada',
+                locationName: `${unit.directionLabel || (isVuelta ? 'Vuelta' : 'Ida')} hacia ${unit.destinationTerminal || nextStop?.name}`
               };
             }
 
@@ -179,7 +237,6 @@ export function useGeoRoutes() {
 
           let vIdx = Math.max(0, Math.min(coords.length - 1, unit.currentVertexIndex ?? 0));
           let segProg = unit.segmentProgress || 0.0;
-          let dir = unit.direction || 1;
           let currentLat = Number.isFinite(unit.lat) ? unit.lat : coords[vIdx][1];
           let currentLng = Number.isFinite(unit.lng) ? unit.lng : coords[vIdx][0];
           let isBoardingNow = false;
@@ -187,12 +244,16 @@ export function useGeoRoutes() {
           let newTargetStopIdx = unit.targetStopIndex ?? 1;
 
           while (distRemaining > 0) {
-            const nextIdx = vIdx + dir;
+            const nextIdx = vIdx + 1;
 
-            if (nextIdx < 0 || nextIdx >= coords.length) {
-              dir = -dir;
+            if (nextIdx >= coords.length) {
               isBoardingNow = true;
               dwellSec = 15;
+              vIdx = 0;
+              segProg = 0.0;
+              newTargetStopIdx = 1;
+              currentLat = coords[0][1];
+              currentLng = coords[0][0];
               break;
             }
 
@@ -215,7 +276,6 @@ export function useGeoRoutes() {
               currentLat = A[1] + (B[1] - A[1]) * segProg;
               currentLng = A[0] + (B[0] - A[0]) * segProg;
 
-              // Comprobar cercanía a parada objetivo (<20m)
               const targetStop = stops[newTargetStopIdx];
               if (targetStop) {
                 const d = calculateHaversineDistance(currentLat, currentLng, targetStop.lat, targetStop.lng);
@@ -255,7 +315,6 @@ export function useGeoRoutes() {
             ...unit,
             currentVertexIndex: vIdx,
             segmentProgress: segProg,
-            direction: dir,
             speedKmh: isBoardingNow ? 0 : speedKmh,
             status: isBoardingNow ? 'BOARDING' : 'IN_TRANSIT',
             dwellRemainingSec: isBoardingNow ? dwellSec : 0,
@@ -265,7 +324,7 @@ export function useGeoRoutes() {
             animLng: currentLng,
             targetStopIndex: newTargetStopIdx,
             nextStopName,
-            locationName: isBoardingNow ? '⏸️ Subiendo pasaje' : `En ruta hacia ${nextStopName}`
+            locationName: isBoardingNow ? '⏸️ Subiendo pasaje' : `${unit.directionLabel || (isVuelta ? 'Vuelta' : 'Ida')} hacia ${unit.destinationTerminal || nextStopName}`
           };
         });
 
@@ -359,6 +418,8 @@ export function useGeoRoutes() {
     userLocation,
     nearestStops,
     telemetryUnits,
+    visibleRouteIds,
+    directionFilter,
     loading,
     loadingNearest,
     error,
@@ -368,6 +429,12 @@ export function useGeoRoutes() {
     setUserLocation,
     simulateTuxtlaLocation,
     clearUserLocation,
+    setVisibleRouteIds,
+    toggleRouteVisibility,
+    showAllRoutes,
+    clearAllRoutes,
+    showFavoriteRoutes,
+    setDirectionFilter,
     reloadRoutes: loadRoutes,
     refreshTelemetry: pollTelemetry,
     setSelectedRoute: selectRoute

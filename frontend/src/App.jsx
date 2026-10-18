@@ -46,14 +46,21 @@ export default function App() {
     userLocation,
     nearestStops,
     telemetryUnits,
+    visibleRouteIds,
+    directionFilter,
     loading,
     loadingNearest,
-    isDemoMode,
     selectRoute,
     selectStop,
     setUserLocation,
     simulateTuxtlaLocation,
     clearUserLocation,
+    setVisibleRouteIds,
+    toggleRouteVisibility,
+    showAllRoutes,
+    clearAllRoutes,
+    showFavoriteRoutes,
+    setDirectionFilter,
     reloadRoutes
   } = useGeoRoutes();
 
@@ -484,7 +491,11 @@ export default function App() {
                     <RouteSelector
                       routes={routes}
                       selectedRouteId={selectedRouteId}
+                      visibleRouteIds={visibleRouteIds}
                       onSelectRoute={handleSelectRoute}
+                      onToggleRouteVisibility={toggleRouteVisibility}
+                      onShowAllRoutes={showAllRoutes}
+                      onShowFavoriteRoutes={showFavoriteRoutes}
                     />
                   )}
 
@@ -556,6 +567,13 @@ export default function App() {
             incidents={incidents}
             selectedTrip={selectedTrip}
             pickingTarget={pickingTarget}
+            visibleRouteIds={visibleRouteIds}
+            directionFilter={directionFilter}
+            onToggleRouteVisibility={toggleRouteVisibility}
+            onShowAllRoutes={showAllRoutes}
+            onClearAllRoutes={clearAllRoutes}
+            onShowFavoriteRoutes={showFavoriteRoutes}
+            onSetDirectionFilter={setDirectionFilter}
             onPickCoordinate={handlePickCoordinate}
             onCancelPicking={() => setPickingTarget(null)}
             onMapClick={setUserLocation}

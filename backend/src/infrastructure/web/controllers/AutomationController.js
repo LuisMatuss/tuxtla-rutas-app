@@ -4,21 +4,24 @@
 
 import { TUXTLA_ROUTES_SEED, calculateHaversineDistance } from '../../db/tuxtlaRoutesSeed.js';
 
-// Semilla de las 12 Unidades Colectivas Activas distribuidas en las 8 rutas
-const SEED_ACTIVE_UNITS = [
-  { unitId: 'TX-01A', routeId: 'a0000001-0000-0000-0000-000000000001', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.35, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 31 },
-  { unitId: 'TX-01B', routeId: 'a0000001-0000-0000-0000-000000000001', currentStopIndex: 9, nextStopIndex: 8, direction: -1, progress: 0.60, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 29 },
-  { unitId: 'TX-A01', routeId: 'a0000002-0000-0000-0000-000000000002', currentStopIndex: 1, nextStopIndex: 2, direction: 1, progress: 0.20, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 32 },
-  { unitId: 'TX-A02', routeId: 'a0000002-0000-0000-0000-000000000002', currentStopIndex: 7, nextStopIndex: 6, direction: -1, progress: 0.45, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 30 },
-  { unitId: 'TX-43A', routeId: 'a0000003-0000-0000-0000-000000000003', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.50, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 34 },
-  { unitId: 'TX-43B', routeId: 'a0000003-0000-0000-0000-000000000003', currentStopIndex: 6, nextStopIndex: 5, direction: -1, progress: 0.25, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 28 },
-  { unitId: 'TX-90A', routeId: 'a0000004-0000-0000-0000-000000000004', currentStopIndex: 1, nextStopIndex: 2, direction: 1, progress: 0.40, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 33 },
-  { unitId: 'TX-58A', routeId: 'a0000005-0000-0000-0000-000000000005', currentStopIndex: 3, nextStopIndex: 4, direction: 1, progress: 0.15, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 30 },
-  { unitId: 'TX-58B', routeId: 'a0000005-0000-0000-0000-000000000005', currentStopIndex: 6, nextStopIndex: 5, direction: -1, progress: 0.70, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 31 },
-  { unitId: 'TX-52A', routeId: 'a0000006-0000-0000-0000-000000000006', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.30, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 29 },
-  { unitId: 'TX-30A', routeId: 'a0000007-0000-0000-0000-000000000007', currentStopIndex: 3, nextStopIndex: 4, direction: 1, progress: 0.55, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 32 },
-  { unitId: 'TX-73A', routeId: 'a0000008-0000-0000-0000-000000000008', currentStopIndex: 2, nextStopIndex: 3, direction: 1, progress: 0.40, status: 'IN_TRANSIT', dwellRemainingSec: 0, speedKmh: 30 }
-];
+export function getRouteShortCode(route) {
+  if (!route) return 'Ruta';
+  const name = route.name || '';
+  if (name.includes('Ruta 108')) return 'R-108';
+  if (name.includes('Ruta 115')) return 'R-115';
+  if (name.includes('Ruta 1 -') || name.includes('Ruta 1 ')) return 'R-01';
+  if (name.includes('Ruta A')) return 'R-A';
+  if (name.includes('Ruta 43')) return 'R-43';
+  if (name.includes('Ruta 90')) return 'R-90';
+  if (name.includes('Ruta 58')) return 'R-58';
+  if (name.includes('Ruta 52')) return 'R-52';
+  if (name.includes('Ruta 30')) return 'R-30';
+  if (name.includes('Ruta 73')) return 'R-73';
+  if (name.includes('Ruta 51')) return 'R-51';
+  if (name.includes('Ruta 22')) return 'R-22';
+  const match = name.match(/Ruta\s+([A-Za-z0-9]+)/i);
+  return match ? `R-${match[1]}` : 'Ruta';
+}
 
 export class AutomationController {
   /**
@@ -39,7 +42,7 @@ export class AutomationController {
     // Rutas indexadas por ID para resolución ultra-rápida de paradas
     this.routesMap = new Map(TUXTLA_ROUTES_SEED.map((r) => [r.id, r]));
 
-    // Inicializar estado cinemático de las 12 unidades activas
+    // Inicializar estado cinemático de las 24 unidades activas (Ida y Vuelta para cada una de las 12 rutas)
     this.initKinematicUnits();
 
     // Iniciar bucle de simulación cinemática (actualización cada 1 segundo)
@@ -49,48 +52,90 @@ export class AutomationController {
   }
 
   /**
-   * Inicializa las 12 unidades colectivas sobre los vértices reales de las calles de Tuxtla
+   * Inicializa 24 unidades (1 de IDA y 1 de VUELTA por cada ruta) sobre geometrías viales reales
    */
   initKinematicUnits() {
-    for (const seed of SEED_ACTIVE_UNITS) {
-      const route = this.routesMap.get(seed.routeId);
-      if (!route || !route.stops || route.stops.length === 0) continue;
+    for (const route of this.routesMap.values()) {
+      const stops = route.stops || [];
+      if (stops.length < 2) continue;
 
-      const coords = route.geometry?.coordinates || [];
-      const stopIndices = route.stopVertexIndices || [];
+      const shortCode = getRouteShortCode(route);
+      const cleanCode = shortCode.replace(/[^A-Za-z0-9]/g, '');
+      const origin = stops[0]?.name || 'Terminal Inicial';
+      const destination = stops[stops.length - 1]?.name || 'Terminal Final';
 
-      const vFrom = stopIndices[seed.currentStopIndex] ?? 0;
-      const vTo = stopIndices[seed.nextStopIndex] ?? (coords.length > 0 ? coords.length - 1 : 0);
+      // 1. Unidad de IDA (circula exclusivamente en outboundGeometry)
+      const idaUnitId = `${cleanCode}-IDA`;
+      const outboundCoords = route.outboundGeometry?.coordinates || route.geometry?.coordinates || [];
+      const outboundIndices = route.outboundStopIndices || route.stopVertexIndices || [];
+      const vFromIda = outboundIndices[1] ?? 0;
+      const vToIda = outboundIndices[2] ?? Math.min(outboundCoords.length - 1, 20);
+      const startIdxIda = Math.max(0, Math.min(outboundCoords.length - 1, Math.round((vFromIda + vToIda) / 2)));
+      const startCoordIda = outboundCoords[startIdxIda] || [stops[0].lng, stops[0].lat];
 
-      // Calcular vértice inicial a lo largo del trazado vial
-      const vIdx = Math.max(0, Math.min(coords.length - 1, Math.round(vFrom + (vTo - vFrom) * (seed.progress || 0))));
-      const currentCoord = coords[vIdx] || [route.stops[0].lng, route.stops[0].lat];
-      const lat = currentCoord[1];
-      const lng = currentCoord[0];
-
-      const fromStop = route.stops[seed.currentStopIndex] || route.stops[0];
-      const toStop = route.stops[seed.nextStopIndex] || route.stops[1] || route.stops[0];
-
-      this.telemetryStore.set(seed.unitId, {
-        unitId: seed.unitId,
+      this.telemetryStore.set(idaUnitId, {
+        unitId: idaUnitId,
         routeId: route.id,
         routeName: route.name,
         routeColor: route.color,
-        lat,
-        lng,
-        speedKmh: seed.status === 'BOARDING' ? 0 : (seed.speedKmh || 30),
-        status: seed.status || 'IN_TRANSIT',
-        dwellRemainingSec: seed.dwellRemainingSec || 0,
-        currentVertexIndex: vIdx,
+        shortName: shortCode,
+        directionType: 'IDA',
+        directionLabel: 'Ida',
+        directionArrow: '➔',
+        displayLabel: `${shortCode} • Ida`,
+        destinationTerminal: destination,
+        originTerminal: origin,
+        lat: startCoordIda[1],
+        lng: startCoordIda[0],
+        speedKmh: 31,
+        status: 'IN_TRANSIT',
+        dwellRemainingSec: 0,
+        currentVertexIndex: startIdxIda,
         segmentProgress: 0.0,
-        currentStopIndex: seed.currentStopIndex,
-        nextStopIndex: seed.nextStopIndex,
-        targetStopIndex: seed.nextStopIndex,
-        currentStopName: fromStop.name,
-        nextStopName: toStop.name,
-        direction: seed.direction || 1,
-        progress: seed.progress,
-        locationName: seed.status === 'BOARDING' ? '⏸️ Subiendo pasaje' : `Hacia ${toStop.name}`,
+        currentStopIndex: 1,
+        nextStopIndex: 2,
+        targetStopIndex: 2,
+        currentStopName: stops[1]?.name || origin,
+        nextStopName: stops[2]?.name || destination,
+        locationName: `Ida hacia ${destination}`,
+        timestamp: new Date().toISOString()
+      });
+
+      // 2. Unidad de VUELTA (circula exclusivamente en inboundGeometry)
+      const vtaUnitId = `${cleanCode}-VTA`;
+      const inboundCoords = route.inboundGeometry?.coordinates || outboundCoords;
+      const returnStops = route.returnStops || [...stops].reverse();
+      const inboundIndices = route.inboundStopIndices || [];
+      const vFromVta = inboundIndices[1] ?? 0;
+      const vToVta = inboundIndices[2] ?? Math.min(inboundCoords.length - 1, 20);
+      const startIdxVta = Math.max(0, Math.min(inboundCoords.length - 1, Math.round((vFromVta + vToVta) / 2)));
+      const startCoordVta = inboundCoords[startIdxVta] || [returnStops[0].lng, returnStops[0].lat];
+
+      this.telemetryStore.set(vtaUnitId, {
+        unitId: vtaUnitId,
+        routeId: route.id,
+        routeName: route.name,
+        routeColor: route.color,
+        shortName: shortCode,
+        directionType: 'VUELTA',
+        directionLabel: 'Vuelta',
+        directionArrow: '↩',
+        displayLabel: `${shortCode} • Vuelta`,
+        destinationTerminal: origin,
+        originTerminal: destination,
+        lat: startCoordVta[1],
+        lng: startCoordVta[0],
+        speedKmh: 29,
+        status: 'IN_TRANSIT',
+        dwellRemainingSec: 0,
+        currentVertexIndex: startIdxVta,
+        segmentProgress: 0.0,
+        currentStopIndex: 1,
+        nextStopIndex: 2,
+        targetStopIndex: 2,
+        currentStopName: returnStops[1]?.name || destination,
+        nextStopName: returnStops[2]?.name || origin,
+        locationName: `Vuelta hacia ${origin}`,
         timestamp: new Date().toISOString()
       });
     }
@@ -98,10 +143,10 @@ export class AutomationController {
 
   /**
    * Motor cinemático de movimiento vial vértice por vértice (velocidad continua ~30 km/h)
-   * - Desplazamiento estricto sobre la polilínea vial route.geometry.coordinates
+   * - Desplazamiento estricto sobre outboundGeometry para IDA e inboundGeometry para VUELTA
    * - Al alcanzar el vértice de una parada oficial (o <= 20m), se detiene exactamente 15s:
    *   status: 'BOARDING', speedKmh: 0, dwellRemainingSec: 15, "⏸️ Subiendo pasaje"
-   * - Al terminar los 15s reanuda sobre los vértices de la calle hacia la siguiente parada
+   * - Al terminar el circuito terminal, reinicia de forma continua en sentido del circuito
    */
   startKinematicSimulation() {
     if (this.simulationInterval) return;
@@ -115,10 +160,20 @@ export class AutomationController {
         const route = this.routesMap.get(unit.routeId);
         if (!route || !route.stops || route.stops.length < 2) continue;
 
-        const coords = route.geometry?.coordinates || [];
-        if (coords.length < 2) continue;
+        const isVuelta = unit.directionType === 'VUELTA';
+        const coords = isVuelta
+          ? (route.inboundGeometry?.coordinates || route.geometry?.coordinates || [])
+          : (route.outboundGeometry?.coordinates || route.geometry?.coordinates || []);
 
-        const stopIndices = route.stopVertexIndices || [];
+        const stops = isVuelta
+          ? (route.returnStops || [...route.stops].reverse())
+          : route.stops;
+
+        const stopIndices = isVuelta
+          ? (route.inboundStopIndices || [])
+          : (route.outboundStopIndices || route.stopVertexIndices || []);
+
+        if (!coords || coords.length < 2 || !stops || stops.length < 2) continue;
 
         // ESTADO 1: La combi está detenida subiendo pasaje (15 segundos)
         if (unit.status === 'BOARDING') {
@@ -134,25 +189,26 @@ export class AutomationController {
             unit.speedKmh = Math.floor(Math.random() * 5) + 28; // ~30 km/h (28 a 32 km/h)
             unit.currentStopIndex = unit.targetStopIndex;
 
-            let proposedNext = unit.targetStopIndex + unit.direction;
-            if (proposedNext >= route.stops.length) {
-              unit.direction = -1;
-              proposedNext = unit.targetStopIndex - 1;
-            } else if (proposedNext < 0) {
-              unit.direction = 1;
-              proposedNext = unit.targetStopIndex + 1;
+            let proposedNext = unit.targetStopIndex + 1;
+            if (proposedNext >= stops.length) {
+              // Terminal alcanzada: reiniciar circuito continuo desde la primera parada
+              unit.currentStopIndex = 0;
+              unit.targetStopIndex = 1;
+              unit.nextStopIndex = 1;
+              unit.currentVertexIndex = 0;
+              unit.segmentProgress = 0.0;
+            } else {
+              unit.targetStopIndex = proposedNext;
+              unit.nextStopIndex = proposedNext;
+              unit.currentVertexIndex = stopIndices[unit.currentStopIndex] ?? unit.currentVertexIndex;
+              unit.segmentProgress = 0.0;
             }
 
-            unit.targetStopIndex = proposedNext;
-            unit.nextStopIndex = proposedNext;
-            unit.currentVertexIndex = stopIndices[unit.currentStopIndex] ?? unit.currentVertexIndex;
-            unit.segmentProgress = 0.0;
-
-            const currentStop = route.stops[unit.currentStopIndex];
-            const nextStop = route.stops[unit.targetStopIndex];
+            const currentStop = stops[unit.currentStopIndex];
+            const nextStop = stops[unit.targetStopIndex];
             unit.currentStopName = currentStop?.name || unit.currentStopName;
             unit.nextStopName = nextStop?.name || 'Siguiente parada';
-            unit.locationName = `En ruta hacia ${unit.nextStopName}`;
+            unit.locationName = `${unit.directionLabel} hacia ${unit.destinationTerminal}`;
           }
           continue;
         }
@@ -165,15 +221,17 @@ export class AutomationController {
 
         while (distRemaining > 0) {
           let vIdx = Math.max(0, Math.min(coords.length - 1, unit.currentVertexIndex ?? 0));
-          let nextIdx = vIdx + unit.direction;
+          let nextIdx = vIdx + 1;
 
-          // Si alcanza el final o inicio de la ruta, invertir sentido y entrar en parada terminal
-          if (nextIdx < 0 || nextIdx >= coords.length) {
+          // Si alcanza el final de su trazado vial, detenerse en terminal y reiniciar
+          if (nextIdx >= coords.length) {
             unit.status = 'BOARDING';
             unit.dwellRemainingSec = 15;
             unit.speedKmh = 0;
-            unit.direction = -unit.direction;
-            unit.locationName = '⏸️ Subiendo pasaje';
+            unit.currentVertexIndex = 0;
+            unit.targetStopIndex = 1;
+            unit.currentStopIndex = 0;
+            unit.locationName = '⏸️ Subiendo pasaje en terminal';
             break;
           }
 
@@ -197,7 +255,7 @@ export class AutomationController {
             unit.lng = A[0] + (B[0] - A[0]) * unit.segmentProgress;
 
             // Comprobar proximidad a la parada objetivo (a menos de 20 metros)
-            const targetStop = route.stops[unit.targetStopIndex];
+            const targetStop = stops[unit.targetStopIndex];
             if (targetStop) {
               const dToStop = calculateHaversineDistance(unit.lat, unit.lng, targetStop.lat, targetStop.lng);
               if (dToStop <= 20) {
@@ -209,10 +267,9 @@ export class AutomationController {
                 unit.locationName = '⏸️ Subiendo pasaje';
                 unit.currentStopName = targetStop.name;
 
-                let nextS = unit.targetStopIndex + unit.direction;
-                if (nextS >= route.stops.length) nextS = unit.targetStopIndex - 1;
-                else if (nextS < 0) nextS = unit.targetStopIndex + 1;
-                unit.nextStopName = route.stops[nextS]?.name || targetStop.name;
+                let nextS = unit.targetStopIndex + 1;
+                if (nextS >= stops.length) nextS = 0;
+                unit.nextStopName = stops[nextS]?.name || targetStop.name;
               }
             }
           } else {
@@ -224,7 +281,7 @@ export class AutomationController {
 
             // Comprobar si alcanzó el vértice de la parada oficial o <= 20 metros
             const targetStopVertex = stopIndices[unit.targetStopIndex] ?? -1;
-            const targetStop = route.stops[unit.targetStopIndex];
+            const targetStop = stops[unit.targetStopIndex];
             const reachedStopVertex = unit.currentVertexIndex === targetStopVertex;
             const nearStop = targetStop && calculateHaversineDistance(B[1], B[0], targetStop.lat, targetStop.lng) <= 20;
 
@@ -237,18 +294,16 @@ export class AutomationController {
               unit.locationName = '⏸️ Subiendo pasaje';
               unit.currentStopName = targetStop ? targetStop.name : unit.currentStopName;
 
-              let nextS = unit.targetStopIndex + unit.direction;
-              if (nextS >= route.stops.length) nextS = unit.targetStopIndex - 1;
-              else if (nextS < 0) nextS = unit.targetStopIndex + 1;
-              unit.nextStopName = route.stops[nextS]?.name || unit.currentStopName;
+              let nextS = unit.targetStopIndex + 1;
+              if (nextS >= stops.length) nextS = 0;
+              unit.nextStopName = stops[nextS]?.name || unit.currentStopName;
               break;
             }
           }
         }
 
         if (unit.status !== 'BOARDING') {
-          const nextStop = route.stops[unit.targetStopIndex];
-          unit.locationName = `En ruta hacia ${nextStop?.name || 'siguiente parada'}`;
+          unit.locationName = `${unit.directionLabel} hacia ${unit.destinationTerminal}`;
         }
 
         unit.timestamp = nowIso;
@@ -379,7 +434,7 @@ export class AutomationController {
         timestamp
       } = req.body || {};
 
-      const finalUnitId = unitId || 'TX-CUSTOM';
+      const finalUnitId = unitId || 'R-CUSTOM';
       const finalLat = lat !== undefined ? Number(lat) : Number(latitude);
       const finalLng = lng !== undefined ? Number(lng) : Number(longitude);
       const finalSpeed =

@@ -1,14 +1,16 @@
 // Componente de Panel Lateral: Selector interactivo y buscador de rutas
 // Incluye soporte para marcar rutas favoritas (persistido en localStorage) y estados en caliente
 import React, { useState, useMemo, useEffect } from 'react';
-import { Bus, Layers, MapPin, Search, Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Bus, Layers, MapPin, Search, Star, AlertTriangle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 const FAVORITES_STORAGE_KEY = 'tuxtla_favorite_routes';
 
 export function RouteSelector({
   routes = [],
   selectedRouteId = null,
-  onSelectRoute
+  visibleRouteIds = [],
+  onSelectRoute,
+  onToggleRouteVisibility
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFavorites, setFilterFavorites] = useState(false);
@@ -235,6 +237,33 @@ export function RouteSelector({
                         {route.scheduleInfo?.frequencyMinutes ? `${route.scheduleInfo.frequencyMinutes} min` : 'Activa'}
                       </span>
                     )}
+
+                    {/* Botón Ver en Mapa */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onToggleRouteVisibility) onToggleRouteVisibility(route.id);
+                      }}
+                      style={{
+                        background: visibleRouteIds.includes(route.id) ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.05)',
+                        border: visibleRouteIds.includes(route.id) ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        padding: '2px 6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '12px',
+                        color: visibleRouteIds.includes(route.id) ? '#38bdf8' : '#94a3b8'
+                      }}
+                      title={visibleRouteIds.includes(route.id) ? 'Ocultar del mapa' : 'Mostrar en el mapa'}
+                    >
+                      {visibleRouteIds.includes(route.id) ? <Eye size={13} color="#38bdf8" /> : <EyeOff size={13} color="#94a3b8" />}
+                      <span style={{ fontSize: '12px', fontWeight: 600 }}>
+                        {visibleRouteIds.includes(route.id) ? 'En mapa' : 'Oculta'}
+                      </span>
+                    </button>
 
                     {/* Botón Favorito Estrella */}
                     <button

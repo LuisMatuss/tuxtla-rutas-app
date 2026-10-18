@@ -1,45 +1,47 @@
-// Componente Cartográfico: Renderizado de unidades colectivas en tiempo real con motor cinemático LERP
-// Muestra estado en tránsito (28-34 km/h) y estado de parada (15 segundos subiendo pasaje con cuenta regresiva en vivo)
-
-import React from 'react';
+// Componente Cartográfico: Renderizado de unidades colectivas en tiempo real con motor cinemático
+// Muestra sentido de circulación realista (Ida ➔ y Vuelta ↩) y parada de 15 segundos subiendo pasaje
+import React, { useMemo } from 'react';
 import { Marker, Popup, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 
 /**
- * Crea un icono HTML personalizado según el estado (BOARDING vs IN_TRANSIT)
+ * Crea un icono HTML personalizado con etiqueta clara de Ruta y Sentido (Ida ➔ / Vuelta ↩)
  */
 function createBusIcon(unit) {
   const isBoarding = unit.status === 'BOARDING';
+  const isVuelta = unit.directionType === 'VUELTA';
   const routeColor = unit.routeColor || '#2563EB';
   const mainColor = isBoarding ? '#f59e0b' : routeColor;
   const dwellSec = Math.ceil(unit.dwellRemainingSec || 15);
+  const arrow = isVuelta ? '↩' : '➔';
+  const labelText = unit.displayLabel || `${unit.shortName || 'Ruta'} • ${unit.directionLabel || (isVuelta ? 'Vuelta' : 'Ida')}`;
 
   const html = `
-    <div style="position: relative; width: 42px; height: 42px; transition: transform 0.25s linear;">
-      <!-- Aura de pulso (Ámbar si sube pasaje, blanco sutil si está en tránsito) -->
+    <div style="position: relative; width: 44px; height: 44px; transition: transform 0.25s linear;">
+      <!-- Aura de pulso (Ámbar si sube pasaje, sutil si está en tránsito) -->
       <div style="
         position: absolute;
         top: -4px;
         left: -4px;
-        width: 50px;
-        height: 50px;
+        width: 52px;
+        height: 52px;
         border-radius: 50%;
         background: ${isBoarding ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255, 255, 255, 0.15)'};
         animation: ${isBoarding ? 'pulse-boarding 1.2s infinite ease-in-out' : 'pulse 2s infinite ease-out'};
       "></div>
 
-      <!-- Icono central del colectivo con elevación limpia neutra sin halo fluorescente -->
+      <!-- Icono central del colectivo con elevación limpia neutra -->
       <div style="
-        width: 40px;
-        height: 40px;
+        width: 42px;
+        height: 42px;
         border-radius: 50%;
-        background: ${isBoarding ? 'linear-gradient(135deg, #d97706, #b45309)' : `linear-gradient(135deg, ${mainColor}, #1d4ed8)`};
+        background: ${isBoarding ? 'linear-gradient(135deg, #d97706, #b45309)' : `linear-gradient(135deg, ${mainColor}, #1e3a8a)`};
         color: #ffffff;
         display: flex;
         align-items: center;
         justify-content: center;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
-        border: 2.5px solid #ffffff;
+        border: 2.5px solid ${isVuelta ? '#e2e8f0' : '#ffffff'};
         font-size: ${isBoarding ? '18px' : '16px'};
         position: relative;
         z-index: 2;
@@ -48,27 +50,28 @@ function createBusIcon(unit) {
         ${isBoarding ? '⏸️' : '🚐'}
       </div>
 
-      <!-- Placa e Indicador inferior con tipografía accesible (12px) -->
+      <!-- Placa de Identificación Realista: Ruta + Sentido (Ida ➔ / Vuelta ↩) -->
       <div style="
         position: absolute;
         bottom: -18px;
         left: 50%;
         transform: translateX(-50%);
-        background: ${isBoarding ? 'rgba(180, 83, 9, 0.95)' : 'rgba(15, 23, 42, 0.95)'};
+        background: ${isBoarding ? 'rgba(180, 83, 9, 0.96)' : 'rgba(15, 23, 42, 0.96)'};
         color: #ffffff;
-        border: 1px solid ${isBoarding ? '#fbbf24' : 'rgba(255, 255, 255, 0.2)'};
+        border: 1px solid ${isBoarding ? '#fbbf24' : isVuelta ? '#93c5fd' : routeColor};
         border-radius: 4px;
         font-size: 12px;
         font-weight: 700;
         padding: 1px 6px;
         white-space: nowrap;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.45);
         z-index: 3;
         display: flex;
         align-items: center;
-        gap: 3px;
+        gap: 4px;
       ">
-        <span>${unit.unitId}</span>
+        <span>${labelText}</span>
+        <span style="font-weight: 900; color: ${isVuelta ? '#93c5fd' : '#fef08a'};">${arrow}</span>
         ${isBoarding ? `<span style="color: #fef08a;">(${dwellSec}s)</span>` : ''}
       </div>
     </div>
@@ -77,20 +80,46 @@ function createBusIcon(unit) {
   return L.divIcon({
     className: `live-unit-icon ${isBoarding ? 'is-boarding' : 'is-transit'}`,
     html,
-    iconSize: [42, 42],
-    iconAnchor: [21, 21],
-    popupAnchor: [0, -24]
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+    popupAnchor: [0, -26]
   });
 }
 
-export function LiveUnitsLayer({ units = [] }) {
-  if (!Array.isArray(units) || units.length === 0) {
+export function LiveUnitsLayer({
+  units = [],
+  visibleRouteIds = null,
+  selectedRouteId = null,
+  directionFilter = 'ALL'
+}) {
+  // Filtrar unidades según las rutas visibles en el mapa y sentido seleccionado
+  const filteredUnits = useMemo(() => {
+    if (!Array.isArray(units) || units.length === 0) return [];
+    return units.filter((unit) => {
+      // 1. Filtrar por visibilidad de ruta
+      if (visibleRouteIds && Array.isArray(visibleRouteIds) && visibleRouteIds.length > 0) {
+        const isVisible = visibleRouteIds.includes(unit.routeId);
+        const isSelected = selectedRouteId === unit.routeId;
+        if (!isVisible && !isSelected) return false;
+      }
+      // 2. Filtrar por sentido de circulación (Ida / Vuelta)
+      if (directionFilter === 'IDA' && unit.directionType === 'VUELTA') {
+        return false;
+      }
+      if (directionFilter === 'VUELTA' && unit.directionType === 'IDA') {
+        return false;
+      }
+      return true;
+    });
+  }, [units, visibleRouteIds, selectedRouteId, directionFilter]);
+
+  if (filteredUnits.length === 0) {
     return null;
   }
 
   return (
     <>
-      {units.map((unit) => {
+      {filteredUnits.map((unit) => {
         const displayLat = Number(unit.animLat !== undefined ? unit.animLat : unit.lat);
         const displayLng = Number(unit.animLng !== undefined ? unit.animLng : unit.lng);
 
@@ -101,7 +130,11 @@ export function LiveUnitsLayer({ units = [] }) {
         const icon = createBusIcon(unit);
         const color = unit.routeColor || '#2563EB';
         const isBoarding = unit.status === 'BOARDING';
+        const isVuelta = unit.directionType === 'VUELTA';
         const dwellSec = Math.ceil(unit.dwellRemainingSec || 15);
+        const dirLabel = unit.directionLabel || (isVuelta ? 'Vuelta' : 'Ida');
+        const arrow = isVuelta ? '↩' : '➔';
+        const destTerminal = unit.destinationTerminal || unit.nextStopName || 'Terminal';
 
         return (
           <Marker
@@ -111,35 +144,59 @@ export function LiveUnitsLayer({ units = [] }) {
           >
             <Tooltip direction="top" offset={[0, -22]}>
               <div style={{ textAlign: 'center', fontWeight: 600, fontSize: '12px' }}>
-                <div style={{ fontWeight: 800 }}>{unit.unitId} &bull; {unit.routeName}</div>
+                <div style={{ fontWeight: 800 }}>
+                  {unit.displayLabel || unit.unitId} {arrow} &bull; {unit.routeName}
+                </div>
+                <div style={{ color: '#cbd5e1', fontSize: '12px' }}>
+                  Sentido: {dirLabel} hacia {destTerminal}
+                </div>
                 {isBoarding ? (
                   <div style={{ color: '#d97706', fontWeight: 700 }}>
                     ⏸️ Subiendo pasaje ({dwellSec}s)
                   </div>
                 ) : (
                   <div style={{ color: '#38bdf8' }}>
-                    ⚡ {unit.speedKmh || 30} km/h &bull; {unit.locationName || 'En tránsito'}
+                    ⚡ {unit.speedKmh || 30} km/h &bull; En tránsito
                   </div>
                 )}
               </div>
             </Tooltip>
 
             <Popup>
-              <div style={{ color: '#0f172a', minWidth: '220px', padding: '2px' }}>
-                {/* Cabecera con Ruta */}
+              <div style={{ color: '#0f172a', minWidth: '230px', padding: '2px' }}>
+                {/* Cabecera con Ruta y Sentido */}
                 <div
                   style={{
-                    display: 'inline-block',
-                    padding: '3px 8px',
-                    borderRadius: '8px',
-                    background: color,
-                    color: '#ffffff',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    marginBottom: '6px'
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '8px'
                   }}
                 >
-                  {unit.routeName || 'Transporte Colectivo'}
+                  <div
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '8px',
+                      background: color,
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 700
+                    }}
+                  >
+                    {unit.routeName || 'Transporte Colectivo'}
+                  </div>
+                  <div
+                    style={{
+                      padding: '2px 7px',
+                      borderRadius: '6px',
+                      background: isVuelta ? '#e0f2fe' : '#fef3c7',
+                      color: isVuelta ? '#0369a1' : '#b45309',
+                      fontSize: '12px',
+                      fontWeight: 800
+                    }}
+                  >
+                    {dirLabel} {arrow}
+                  </div>
                 </div>
 
                 {/* Banner de Estado Cinemático */}
@@ -163,7 +220,7 @@ export function LiveUnitsLayer({ units = [] }) {
                     <div>
                       <div>Subiendo pasaje ({dwellSec}s...)</div>
                       <div style={{ fontSize: '12px', fontWeight: 500, color: '#b45309' }}>
-                        Parada: {unit.currentStopName || 'Terminal / Parada'}
+                        Parada: {unit.currentStopName || 'Parada Oficial'}
                       </div>
                     </div>
                   </div>
@@ -188,11 +245,15 @@ export function LiveUnitsLayer({ units = [] }) {
                   </div>
                 )}
 
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>
-                  Unidad: {unit.unitId}
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
+                  {unit.displayLabel || unit.unitId} ({dirLabel} {arrow})
                 </h4>
 
                 <div style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <p style={{ margin: 0, color: '#0f172a' }}>
+                    🚩 <strong>Sentido:</strong> {dirLabel} hacia <strong>{destTerminal}</strong>
+                  </p>
+
                   <p style={{ margin: 0, color: '#475569' }}>
                     ⚡ <strong>Velocidad:</strong> {isBoarding ? '0 km/h (Detenido)' : `${unit.speedKmh || 30} km/h`}
                   </p>
@@ -205,7 +266,7 @@ export function LiveUnitsLayer({ units = [] }) {
 
                   {unit.nextStopName && (
                     <p style={{ margin: 0, color: '#475569' }}>
-                      🏁 <strong>Próximo destino:</strong> {unit.nextStopName}
+                      🏁 <strong>Próxima parada:</strong> {unit.nextStopName}
                     </p>
                   )}
 
@@ -234,7 +295,7 @@ export function LiveUnitsLayer({ units = [] }) {
                         background: isBoarding ? '#f59e0b' : '#10b981'
                       }}
                     ></span>
-                    {isBoarding ? 'Ascenso de pasaje activo' : 'Motor cinemático activo'}
+                    {isBoarding ? 'Ascenso de pasaje activo' : 'Circuito continuo activo'}
                   </div>
                 </div>
               </div>

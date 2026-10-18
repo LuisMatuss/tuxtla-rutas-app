@@ -22,7 +22,7 @@ export function AdminPanel({
   const [routeSavedMsg, setRouteSavedMsg] = useState(null);
 
   // Formulario de despacho de combi
-  const [newUnitId, setNewUnitId] = useState(`TX-${Math.floor(100 + Math.random() * 900)}`);
+  const [newUnitId, setNewUnitId] = useState(`R-EXT-${Math.floor(10 + Math.random() * 90)}`);
   const [dispatchRouteId, setDispatchRouteId] = useState(routes[0]?.id || '');
   const [dispatchSpeed, setDispatchSpeed] = useState(28);
   const [dispatching, setDispatching] = useState(false);
@@ -74,7 +74,7 @@ export function AdminPanel({
 
       if (res.success) {
         setDispatchMsg(`✅ Unidad ${newUnitId.toUpperCase()} despachada.`);
-        setNewUnitId(`TX-${Math.floor(100 + Math.random() * 900)}`);
+        setNewUnitId(`R-EXT-${Math.floor(10 + Math.random() * 90)}`);
       } else {
         setDispatchMsg(`❌ ${res.message || 'No se pudo despachar'}`);
       }

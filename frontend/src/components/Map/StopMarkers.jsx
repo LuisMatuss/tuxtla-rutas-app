@@ -5,6 +5,7 @@ import { CircleMarker, Circle, Popup, Tooltip } from 'react-leaflet';
 export function StopMarkers({
   stops = [],
   routes = [],
+  visibleRouteIds = null,
   selectedRouteId = null,
   activeStop = null,
   userLocation = null,
@@ -19,6 +20,18 @@ export function StopMarkers({
     }
     return map;
   }, [routes]);
+
+  // Filtrar paradas para mostrar exclusivamente las de rutas visibles en el mapa o la seleccionada
+  const activeStops = React.useMemo(() => {
+    if (!Array.isArray(stops)) return [];
+    return stops.filter((stop) => {
+      if (selectedRouteId && stop.routeId === selectedRouteId) return true;
+      if (visibleRouteIds && Array.isArray(visibleRouteIds) && visibleRouteIds.length > 0) {
+        return visibleRouteIds.includes(stop.routeId);
+      }
+      return false;
+    });
+  }, [stops, visibleRouteIds, selectedRouteId]);
 
   return (
     <>
@@ -79,7 +92,7 @@ export function StopMarkers({
       )}
 
       {/* 2. Marcadores de Paradas */}
-      {stops.map((stop) => {
+      {activeStops.map((stop) => {
         const lat =
           stop.lat !== undefined
             ? Number(stop.lat)
