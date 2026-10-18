@@ -49,19 +49,27 @@ export class AutomationController {
   }
 
   /**
-   * Inicializa las 12 unidades colectivas en sus posiciones geodésicas iniciales
+   * Inicializa las 12 unidades colectivas sobre los vértices reales de las calles de Tuxtla
    */
   initKinematicUnits() {
     for (const seed of SEED_ACTIVE_UNITS) {
       const route = this.routesMap.get(seed.routeId);
       if (!route || !route.stops || route.stops.length === 0) continue;
 
+      const coords = route.geometry?.coordinates || [];
+      const stopIndices = route.stopVertexIndices || [];
+
+      const vFrom = stopIndices[seed.currentStopIndex] ?? 0;
+      const vTo = stopIndices[seed.nextStopIndex] ?? (coords.length > 0 ? coords.length - 1 : 0);
+
+      // Calcular vértice inicial a lo largo del trazado vial
+      const vIdx = Math.max(0, Math.min(coords.length - 1, Math.round(vFrom + (vTo - vFrom) * (seed.progress || 0))));
+      const currentCoord = coords[vIdx] || [route.stops[0].lng, route.stops[0].lat];
+      const lat = currentCoord[1];
+      const lng = currentCoord[0];
+
       const fromStop = route.stops[seed.currentStopIndex] || route.stops[0];
       const toStop = route.stops[seed.nextStopIndex] || route.stops[1] || route.stops[0];
-
-      // Interpolación lineal LERP inicial
-      const lat = fromStop.lat + (toStop.lat - fromStop.lat) * seed.progress;
-      const lng = fromStop.lng + (toStop.lng - fromStop.lng) * seed.progress;
 
       this.telemetryStore.set(seed.unitId, {
         unitId: seed.unitId,
@@ -70,26 +78,30 @@ export class AutomationController {
         routeColor: route.color,
         lat,
         lng,
-        speedKmh: seed.speedKmh,
-        status: seed.status,
-        dwellRemainingSec: seed.dwellRemainingSec,
+        speedKmh: seed.status === 'BOARDING' ? 0 : (seed.speedKmh || 30),
+        status: seed.status || 'IN_TRANSIT',
+        dwellRemainingSec: seed.dwellRemainingSec || 0,
+        currentVertexIndex: vIdx,
+        segmentProgress: 0.0,
         currentStopIndex: seed.currentStopIndex,
         nextStopIndex: seed.nextStopIndex,
+        targetStopIndex: seed.nextStopIndex,
         currentStopName: fromStop.name,
         nextStopName: toStop.name,
-        direction: seed.direction,
+        direction: seed.direction || 1,
         progress: seed.progress,
-        locationName: `Hacia ${toStop.name}`,
+        locationName: seed.status === 'BOARDING' ? '⏸️ Subiendo pasaje' : `Hacia ${toStop.name}`,
         timestamp: new Date().toISOString()
       });
     }
   }
 
   /**
-   * Motor cinemático de movimiento continuo realista
-   * - Cada unidad avanza a una velocidad de 28 a 34 km/h (~8.5 m/s)
-   * - Al llegar a una parada (progress >= 1.0), se detiene exactamente 15 segundos subiendo pasaje
-   * - Al completar los 15s, reanuda el viaje hacia la siguiente parada invirtiendo sentido en los extremos
+   * Motor cinemático de movimiento vial vértice por vértice (velocidad continua ~30 km/h)
+   * - Desplazamiento estricto sobre la polilínea vial route.geometry.coordinates
+   * - Al alcanzar el vértice de una parada oficial (o <= 20m), se detiene exactamente 15s:
+   *   status: 'BOARDING', speedKmh: 0, dwellRemainingSec: 15, "⏸️ Subiendo pasaje"
+   * - Al terminar los 15s reanuda sobre los vértices de la calle hacia la siguiente parada
    */
   startKinematicSimulation() {
     if (this.simulationInterval) return;
@@ -103,87 +115,139 @@ export class AutomationController {
         const route = this.routesMap.get(unit.routeId);
         if (!route || !route.stops || route.stops.length < 2) continue;
 
-        const stops = route.stops;
+        const coords = route.geometry?.coordinates || [];
+        if (coords.length < 2) continue;
+
+        const stopIndices = route.stopVertexIndices || [];
 
         // ESTADO 1: La combi está detenida subiendo pasaje (15 segundos)
         if (unit.status === 'BOARDING') {
           unit.dwellRemainingSec = Math.max(0, (unit.dwellRemainingSec || 15) - TICK_SECONDS);
           unit.speedKmh = 0;
+          unit.locationName = '⏸️ Subiendo pasaje';
           unit.timestamp = nowIso;
 
           if (unit.dwellRemainingSec <= 0) {
-            // Fin del tiempo de ascenso de pasaje: Reanuda marcha hacia siguiente parada
+            // Fin del tiempo de ascenso: Reanuda marcha sobre los vértices viales
             unit.status = 'IN_TRANSIT';
             unit.dwellRemainingSec = 0;
-            unit.speedKmh = Math.floor(Math.random() * 7) + 28; // 28 - 34 km/h
-            unit.progress = 0;
+            unit.speedKmh = Math.floor(Math.random() * 5) + 28; // ~30 km/h (28 a 32 km/h)
+            unit.currentStopIndex = unit.targetStopIndex;
 
-            // Avanzar índices
-            unit.currentStopIndex = unit.nextStopIndex;
-            let proposedNext = unit.currentStopIndex + unit.direction;
-
-            if (proposedNext >= stops.length) {
+            let proposedNext = unit.targetStopIndex + unit.direction;
+            if (proposedNext >= route.stops.length) {
               unit.direction = -1;
-              proposedNext = unit.currentStopIndex - 1;
+              proposedNext = unit.targetStopIndex - 1;
             } else if (proposedNext < 0) {
               unit.direction = 1;
-              proposedNext = unit.currentStopIndex + 1;
+              proposedNext = unit.targetStopIndex + 1;
             }
 
+            unit.targetStopIndex = proposedNext;
             unit.nextStopIndex = proposedNext;
-            const fromStop = stops[unit.currentStopIndex];
-            const toStop = stops[unit.nextStopIndex];
-            unit.currentStopName = fromStop.name;
-            unit.nextStopName = toStop.name;
-            unit.locationName = `Hacia ${toStop.name}`;
+            unit.currentVertexIndex = stopIndices[unit.currentStopIndex] ?? unit.currentVertexIndex;
+            unit.segmentProgress = 0.0;
+
+            const currentStop = route.stops[unit.currentStopIndex];
+            const nextStop = route.stops[unit.targetStopIndex];
+            unit.currentStopName = currentStop?.name || unit.currentStopName;
+            unit.nextStopName = nextStop?.name || 'Siguiente parada';
+            unit.locationName = `En ruta hacia ${unit.nextStopName}`;
           }
           continue;
         }
 
-        // ESTADO 2: La combi está en tránsito entre paradas con LERP continuo
-        const fromStop = stops[unit.currentStopIndex] || stops[0];
-        const toStop = stops[unit.nextStopIndex] || stops[stops.length - 1];
-
-        const segmentDistanceMeters = Math.max(
-          100,
-          calculateHaversineDistance(fromStop.lat, fromStop.lng, toStop.lat, toStop.lng)
-        );
-
-        // Velocidad realista entre 28 y 34 km/h (~7.8 a 9.4 m/s)
-        const speedKmh = Math.floor(Math.random() * 7) + 28;
+        // ESTADO 2: En tránsito siguiendo estrictamente los vértices viales a ~30 km/h
+        const speedKmh = unit.speedKmh || (Math.floor(Math.random() * 5) + 28);
         unit.speedKmh = speedKmh;
-        const speedMps = (speedKmh * 1000) / 3600;
+        const speedMps = (speedKmh * 1000) / 3600; // ~8.33 m/s
+        let distRemaining = speedMps * TICK_SECONDS;
 
-        // Avance de progreso en este tick
-        const progressIncrement = (speedMps * TICK_SECONDS) / segmentDistanceMeters;
-        unit.progress = (unit.progress || 0) + progressIncrement;
+        while (distRemaining > 0) {
+          let vIdx = unit.currentVertexIndex ?? 0;
+          let nextIdx = vIdx + unit.direction;
 
-        if (unit.progress >= 1.0) {
-          // Ha arribado a la parada: Entra en parada de 15 segundos subiendo pasaje
-          unit.progress = 1.0;
-          unit.status = 'BOARDING';
-          unit.dwellRemainingSec = 15;
-          unit.speedKmh = 0;
-          unit.lat = toStop.lat;
-          unit.lng = toStop.lng;
-          unit.currentStopName = toStop.name;
-          unit.locationName = `Parada: ${toStop.name} (Subiendo pasaje)`;
-
-          // Calcular la siguiente parada para cuando reanude marcha
-          let nextAfter = unit.nextStopIndex + unit.direction;
-          if (nextAfter >= stops.length) {
-            unit.direction = -1;
-            nextAfter = unit.nextStopIndex - 1;
-          } else if (nextAfter < 0) {
-            unit.direction = 1;
-            nextAfter = unit.nextStopIndex + 1;
+          // Si alcanza el final o inicio de la ruta, invertir sentido y entrar en parada terminal
+          if (nextIdx < 0 || nextIdx >= coords.length) {
+            unit.status = 'BOARDING';
+            unit.dwellRemainingSec = 15;
+            unit.speedKmh = 0;
+            unit.direction = -unit.direction;
+            unit.locationName = '⏸️ Subiendo pasaje';
+            break;
           }
-          unit.nextStopName = stops[nextAfter]?.name || toStop.name;
-        } else {
-          // Interpolación lineal LERP suave entre fromStop y toStop
-          unit.lat = fromStop.lat + (toStop.lat - fromStop.lat) * unit.progress;
-          unit.lng = fromStop.lng + (toStop.lng - fromStop.lng) * unit.progress;
-          unit.locationName = `En ruta hacia ${toStop.name}`;
+
+          const A = coords[vIdx]; // [lng, lat]
+          const B = coords[nextIdx]; // [lng, lat]
+          const segLen = calculateHaversineDistance(A[1], A[0], B[1], B[0]);
+
+          if (segLen < 0.1) {
+            unit.currentVertexIndex = nextIdx;
+            unit.segmentProgress = 0.0;
+            continue;
+          }
+
+          const remOnSeg = (1.0 - (unit.segmentProgress || 0.0)) * segLen;
+
+          if (distRemaining < remOnSeg) {
+            unit.segmentProgress = (unit.segmentProgress || 0.0) + distRemaining / segLen;
+            distRemaining = 0;
+            unit.lat = A[1] + (B[1] - A[1]) * unit.segmentProgress;
+            unit.lng = A[0] + (B[0] - A[0]) * unit.segmentProgress;
+
+            // Comprobar proximidad a la parada objetivo (a menos de 20 metros)
+            const targetStop = route.stops[unit.targetStopIndex];
+            if (targetStop) {
+              const dToStop = calculateHaversineDistance(unit.lat, unit.lng, targetStop.lat, targetStop.lng);
+              if (dToStop <= 20) {
+                unit.status = 'BOARDING';
+                unit.dwellRemainingSec = 15;
+                unit.speedKmh = 0;
+                unit.lat = targetStop.lat;
+                unit.lng = targetStop.lng;
+                unit.locationName = '⏸️ Subiendo pasaje';
+                unit.currentStopName = targetStop.name;
+
+                let nextS = unit.targetStopIndex + unit.direction;
+                if (nextS >= route.stops.length) nextS = unit.targetStopIndex - 1;
+                else if (nextS < 0) nextS = unit.targetStopIndex + 1;
+                unit.nextStopName = route.stops[nextS]?.name || targetStop.name;
+              }
+            }
+          } else {
+            distRemaining -= remOnSeg;
+            unit.segmentProgress = 0.0;
+            unit.currentVertexIndex = nextIdx;
+            unit.lat = B[1];
+            unit.lng = B[0];
+
+            // Comprobar si alcanzó el vértice de la parada oficial o <= 20 metros
+            const targetStopVertex = stopIndices[unit.targetStopIndex] ?? -1;
+            const targetStop = route.stops[unit.targetStopIndex];
+            const reachedStopVertex = unit.currentVertexIndex === targetStopVertex;
+            const nearStop = targetStop && calculateHaversineDistance(B[1], B[0], targetStop.lat, targetStop.lng) <= 20;
+
+            if (reachedStopVertex || nearStop) {
+              unit.status = 'BOARDING';
+              unit.dwellRemainingSec = 15;
+              unit.speedKmh = 0;
+              unit.lat = targetStop ? targetStop.lat : B[1];
+              unit.lng = targetStop ? targetStop.lng : B[0];
+              unit.locationName = '⏸️ Subiendo pasaje';
+              unit.currentStopName = targetStop ? targetStop.name : unit.currentStopName;
+
+              let nextS = unit.targetStopIndex + unit.direction;
+              if (nextS >= route.stops.length) nextS = unit.targetStopIndex - 1;
+              else if (nextS < 0) nextS = unit.targetStopIndex + 1;
+              unit.nextStopName = route.stops[nextS]?.name || unit.currentStopName;
+              break;
+            }
+          }
+        }
+
+        if (unit.status !== 'BOARDING') {
+          const nextStop = route.stops[unit.targetStopIndex];
+          unit.locationName = `En ruta hacia ${nextStop?.name || 'siguiente parada'}`;
         }
 
         unit.timestamp = nowIso;

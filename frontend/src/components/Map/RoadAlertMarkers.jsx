@@ -22,7 +22,7 @@ function getAlertIcon(type) {
       break;
     case 'CROWDED_UNIT':
       emoji = '🚐';
-      gradient = 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)';
+      gradient = 'linear-gradient(135deg, #475569 0%, #334155 100%)';
       break;
     case 'ROAD_WORK':
       emoji = '🔧';

@@ -15,6 +15,12 @@ import { PlannedTripLayer } from './PlannedTripLayer.jsx';
 const TUXTLA_CENTER = [16.7516, -93.1161];
 const DEFAULT_ZOOM = 13;
 
+// Límites geográficos estrictos para encerrar la cámara exclusivamente en Tuxtla Gutiérrez y su zona conurbada
+const TUXTLA_MAX_BOUNDS = [
+  [16.6850, -93.2250], // Suroeste (Terán Sur / Real del Bosque / Copoya)
+  [16.8350, -93.0200]  // Noreste (Cañón del Sumidero / Chiapa de Corzo)
+];
+
 // Catálogo de capas base 100% libres de API Key
 const BASEMAP_PROVIDERS = {
   osm: {
@@ -327,6 +333,9 @@ export function MapView({
       <MapContainer
         center={TUXTLA_CENTER}
         zoom={DEFAULT_ZOOM}
+        minZoom={12}
+        maxBounds={TUXTLA_MAX_BOUNDS}
+        maxBoundsViscosity={1.0}
         style={{ width: '100%', height: '100%' }}
         zoomControl={true}
       >

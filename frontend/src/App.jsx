@@ -201,7 +201,7 @@ export default function App() {
               <h1 style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '-0.3px', margin: 0, color: '#f8fafc' }}>
                 Tuxtla-Rutas
               </h1>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>
                 Movilidad Urbana &bull; Chiapas
               </span>
             </div>
@@ -220,9 +220,9 @@ export default function App() {
           }}
         >
           {[
-            { id: 'USER', label: '👤 Usuario', badgeColor: '#10b981', title: 'Modo Pasajero: Rutas, Qué combi tomo y horarios' },
-            { id: 'SUPPORT', label: '🎧 Soporte Vial', badgeColor: '#3b82f6', title: 'Centro de Alertas y Reportes Ciudadanos' },
-            { id: 'ADMIN', label: '🛡️ Administrador', badgeColor: '#8b5cf6', title: 'Control Operativo de Frecuencias y Flota' }
+            { id: 'USER', label: '👤 Usuario', badgeColor: '#047857', title: 'Modo Pasajero: Rutas, Qué combi tomo y horarios' },
+            { id: 'SUPPORT', label: '🎧 Soporte Vial', badgeColor: '#2563eb', title: 'Centro de Alertas y Reportes Ciudadanos' },
+            { id: 'ADMIN', label: '🛡️ Administrador', badgeColor: '#0284c7', title: 'Control Operativo de Frecuencias y Flota' }
           ].map((role) => {
             const isSelected = currentRole === role.id;
             return (
@@ -368,10 +368,10 @@ export default function App() {
                 padding: '10px 16px',
                 background:
                   currentRole === 'ADMIN'
-                    ? 'linear-gradient(90deg, rgba(139, 92, 246, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%)'
+                    ? 'linear-gradient(90deg, rgba(2, 132, 199, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%)'
                     : currentRole === 'SUPPORT'
-                    ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%)'
-                    : 'linear-gradient(90deg, rgba(16, 185, 129, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)',
+                    ? 'linear-gradient(90deg, rgba(37, 99, 235, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%)'
+                    : 'linear-gradient(90deg, rgba(5, 150, 105, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%)',
                 borderBottom: '1px solid var(--border-subtle)',
                 display: 'flex',
                 alignItems: 'center',
@@ -380,7 +380,7 @@ export default function App() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {currentRole === 'ADMIN' ? (
-                  <Shield size={16} color="#c4b5fd" />
+                  <Shield size={16} color="#7dd3fc" />
                 ) : currentRole === 'SUPPORT' ? (
                   <Headphones size={16} color="#93c5fd" />
                 ) : (

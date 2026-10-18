@@ -157,40 +157,36 @@ export function RouteSelector({
               key={route.id}
               onClick={() => onSelectRoute(route.id)}
               style={{
-                padding: '12px',
-                borderRadius: 'var(--radius-md)',
+                padding: '12px 10px',
+                borderRadius: '8px',
                 border: isSelected
-                  ? `2px solid ${routeColor}`
-                  : isSuspended
-                  ? '1px solid rgba(239, 68, 68, 0.5)'
-                  : '1px solid var(--border-subtle)',
+                  ? '1px solid rgba(255, 255, 255, 0.25)'
+                  : '1px solid transparent',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                 background: isSelected
-                  ? 'rgba(30, 41, 59, 0.95)'
+                  ? 'rgba(255, 255, 255, 0.08)'
                   : isSuspended
-                  ? 'rgba(239, 68, 68, 0.08)'
-                  : 'rgba(30, 41, 59, 0.4)',
+                  ? 'rgba(239, 68, 68, 0.05)'
+                  : 'transparent',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
+                transition: 'background 0.2s ease, border-color 0.2s ease',
                 position: 'relative',
-                overflow: 'hidden',
                 opacity: isSuspended ? 0.75 : 1
               }}
             >
-              {/* Barra lateral de color de ruta */}
-              <div
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: '4px',
-                  background: isSuspended ? '#ef4444' : routeColor
-                }}
-              />
-
-              <div style={{ marginLeft: '6px' }}>
+              <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
+                      style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        background: isSuspended ? '#ef4444' : routeColor,
+                        display: 'inline-block',
+                        flexShrink: 0
+                      }}
+                    />
                     <Bus size={15} color={isSuspended ? '#ef4444' : routeColor} />
                     <strong style={{ fontSize: '13px', color: '#ffffff' }}>
                       {route.name}
@@ -198,15 +194,15 @@ export function RouteSelector({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {/* Badge de Estado Operativo */}
+                    {/* Badge de Estado Operativo Accesible (>= 11px, >= 4.5:1) */}
                     {isSuspended ? (
                       <span
                         style={{
                           background: 'rgba(239, 68, 68, 0.25)',
-                          color: '#f87171',
-                          padding: '2px 6px',
+                          color: '#fca5a5',
+                          padding: '2px 7px',
                           borderRadius: '6px',
-                          fontSize: '10px',
+                          fontSize: '11px',
                           fontWeight: 700
                         }}
                       >
@@ -216,10 +212,10 @@ export function RouteSelector({
                       <span
                         style={{
                           background: 'rgba(245, 158, 11, 0.25)',
-                          color: '#fbbf24',
-                          padding: '2px 6px',
+                          color: '#fde047',
+                          padding: '2px 7px',
                           borderRadius: '6px',
-                          fontSize: '10px',
+                          fontSize: '11px',
                           fontWeight: 700
                         }}
                       >
@@ -228,11 +224,11 @@ export function RouteSelector({
                     ) : (
                       <span
                         style={{
-                          background: `${routeColor}25`,
-                          color: routeColor,
-                          padding: '2px 6px',
+                          background: 'rgba(255, 255, 255, 0.12)',
+                          color: '#f8fafc',
+                          padding: '2px 7px',
                           borderRadius: '6px',
-                          fontSize: '10px',
+                          fontSize: '11px',
                           fontWeight: 700
                         }}
                       >
@@ -267,7 +263,7 @@ export function RouteSelector({
                 <p
                   style={{
                     fontSize: '12px',
-                    color: 'var(--text-muted)',
+                    color: '#94a3b8',
                     lineHeight: '1.4',
                     margin: '4px 0 8px 0',
                     display: '-webkit-box',
@@ -279,7 +275,7 @@ export function RouteSelector({
                   {route.description}
                 </p>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: '#94a3b8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: '#cbd5e1' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <MapPin size={12} color={routeColor} />
                     {stopsCount} paradas

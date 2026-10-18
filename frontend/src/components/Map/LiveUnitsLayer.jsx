@@ -16,7 +16,7 @@ function createBusIcon(unit) {
 
   const html = `
     <div style="position: relative; width: 42px; height: 42px;">
-      <!-- Aura de pulso (Ámbar si sube pasaje, color de ruta si está en tránsito) -->
+      <!-- Aura de pulso (Ámbar si sube pasaje, blanco sutil si está en tránsito) -->
       <div style="
         position: absolute;
         top: -4px;
@@ -24,21 +24,21 @@ function createBusIcon(unit) {
         width: 50px;
         height: 50px;
         border-radius: 50%;
-        background: ${mainColor}40;
+        background: ${isBoarding ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255, 255, 255, 0.15)'};
         animation: ${isBoarding ? 'pulse-boarding 1.2s infinite ease-in-out' : 'pulse 2s infinite ease-out'};
       "></div>
 
-      <!-- Icono central del colectivo -->
+      <!-- Icono central del colectivo con elevación limpia neutra sin halo fluorescente -->
       <div style="
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background: ${isBoarding ? 'linear-gradient(135deg, #f59e0b, #d97706)' : `linear-gradient(135deg, ${mainColor}, #1d4ed8)`};
+        background: ${isBoarding ? 'linear-gradient(135deg, #d97706, #b45309)' : `linear-gradient(135deg, ${mainColor}, #1d4ed8)`};
         color: #ffffff;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 14px ${mainColor}90, 0 2px 4px rgba(0,0,0,0.5);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
         border: 2.5px solid #ffffff;
         font-size: ${isBoarding ? '18px' : '16px'};
         position: relative;
@@ -48,7 +48,7 @@ function createBusIcon(unit) {
         ${isBoarding ? '⏸️' : '🚐'}
       </div>
 
-      <!-- Placa e Indicador inferior -->
+      <!-- Placa e Indicador inferior con tipografía accesible (11px) -->
       <div style="
         position: absolute;
         bottom: -18px;
@@ -58,7 +58,7 @@ function createBusIcon(unit) {
         color: #ffffff;
         border: 1px solid ${isBoarding ? '#fbbf24' : 'rgba(255, 255, 255, 0.2)'};
         border-radius: 4px;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 700;
         padding: 1px 6px;
         white-space: nowrap;

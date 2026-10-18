@@ -146,4 +146,22 @@ body {
   }
 }
 
+/* Input placeholder con contraste accesible WCAG AA (>= 4.5:1) */
+::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+/* Leaflet attribution con contraste accesible WCAG AA y tamaño legible */
+.leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.88) !important;
+  color: #94a3b8 !important;
+  font-size: 12px !important;
+}
+
+.leaflet-control-attribution a {
+  color: #38bdf8 !important;
+}
+
+
 

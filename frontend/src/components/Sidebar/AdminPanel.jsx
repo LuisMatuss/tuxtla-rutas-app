@@ -125,10 +125,10 @@ export function AdminPanel({
             onClick={() => setActiveTab(tab.id)}
             style={{
               padding: '8px 4px',
-              background: activeTab === tab.id ? 'rgba(139, 92, 246, 0.25)' : 'rgba(30, 41, 59, 0.5)',
-              border: activeTab === tab.id ? '1px solid #8b5cf6' : '1px solid var(--border-subtle)',
+              background: activeTab === tab.id ? 'rgba(2, 132, 199, 0.25)' : 'rgba(30, 41, 59, 0.5)',
+              border: activeTab === tab.id ? '1px solid #0284c7' : '1px solid var(--border-subtle)',
               borderRadius: '8px',
-              color: activeTab === tab.id ? '#c4b5fd' : '#94a3b8',
+              color: activeTab === tab.id ? '#7dd3fc' : '#94a3b8',
               fontSize: '11px',
               fontWeight: 700,
               cursor: 'pointer',
@@ -346,12 +346,12 @@ export function AdminPanel({
               step="1"
               value={freqMinutes}
               onChange={(e) => setFreqMinutes(e.target.value)}
-              style={{ width: '100%', accentColor: '#8b5cf6', cursor: 'pointer' }}
+              style={{ width: '100%', accentColor: '#0284c7', cursor: 'pointer' }}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#64748b' }}>
-              <span>3 min (Pico Máximo)</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
+              <span>3 min (Pico)</span>
               <span>15 min</span>
-              <span>35 min (Madrugada)</span>
+              <span>35 min</span>
             </div>
           </div>
 
@@ -389,7 +389,7 @@ export function AdminPanel({
             disabled={savingRoute}
             style={{
               padding: '9px 12px',
-              background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)',
+              background: 'linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%)',
               border: 'none',
               borderRadius: '8px',
               color: '#ffffff',
