@@ -191,7 +191,7 @@ export default function App() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)'
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)'
               }}
             >
               <Bus size={20} color="#ffffff" />
@@ -267,7 +267,7 @@ export default function App() {
               border: '1px solid rgba(239, 68, 68, 0.4)',
               borderRadius: '8px',
               color: '#f87171',
-              fontSize: '11px',
+              fontSize: '12px',
               fontWeight: 700,
               cursor: 'pointer',
               display: 'flex',
@@ -289,7 +289,7 @@ export default function App() {
               background: activeAlertsCount > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.15)',
               border: activeAlertsCount > 0 ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(16, 185, 129, 0.4)',
               color: activeAlertsCount > 0 ? '#fca5a5' : '#34d399',
-              fontSize: '11px',
+              fontSize: '12px',
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
@@ -308,7 +308,7 @@ export default function App() {
               background: 'rgba(37, 99, 235, 0.15)',
               border: '1px solid rgba(37, 99, 235, 0.4)',
               color: '#60a5fa',
-              fontSize: '11px',
+              fontSize: '12px',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
@@ -416,7 +416,7 @@ export default function App() {
                     border: 'none',
                     borderBottom: userTab === 'routes' ? '2px solid var(--color-primary-light)' : '2px solid transparent',
                     color: userTab === 'routes' ? '#ffffff' : 'var(--text-muted)',
-                    fontSize: '11px',
+                    fontSize: '12px',
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'flex',
@@ -438,7 +438,7 @@ export default function App() {
                     border: 'none',
                     borderBottom: userTab === 'planner' ? '2px solid #38bdf8' : '2px solid transparent',
                     color: userTab === 'planner' ? '#ffffff' : 'var(--text-muted)',
-                    fontSize: '11px',
+                    fontSize: '12px',
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'flex',
@@ -460,7 +460,7 @@ export default function App() {
                     border: 'none',
                     borderBottom: userTab === 'schedule' ? '2px solid #3b82f6' : '2px solid transparent',
                     color: userTab === 'schedule' ? '#ffffff' : 'var(--text-muted)',
-                    fontSize: '11px',
+                    fontSize: '12px',
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'flex',

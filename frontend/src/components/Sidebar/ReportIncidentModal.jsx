@@ -1,16 +1,14 @@
-// Componente Modal: Reporte Ciudadano de Incidencias en Ruta / Parada
-// Permite a los pasajeros notificar combis llenas, demoras altas, bloqueos o lluvia
-
+// Componente Modal: Reporte Ciudadano de Incidencias en Ruta / Parada (Zero-Slop, Apple Maps style)
 import React, { useState } from 'react';
-import { X, Send, AlertTriangle, Bus, MessageSquare, MapPin } from 'lucide-react';
+import { X, Send, AlertTriangle, MapPin } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
 
 const INCIDENT_CATEGORIES = [
-  { id: 'CROWDED_UNIT', label: '🚐 Combi Llena / Sin Espacio', icon: '🚐' },
-  { id: 'HIGH_DELAY', label: '⏳ Demora Excesiva (+20 min)', icon: '⏳' },
-  { id: 'ROAD_BLOCK', label: '🚧 Calle Cerrada / Bloqueo', icon: '🚧' },
+  { id: 'CROWDED_UNIT', label: '🚐 Combi Llena', icon: '🚐' },
+  { id: 'HIGH_DELAY', label: '⏳ Demora (+20 min)', icon: '⏳' },
+  { id: 'ROAD_BLOCK', label: '🚧 Calle Cerrada', icon: '🚧' },
   { id: 'HEAVY_TRAFFIC', label: '🚗 Tráfico Severo', icon: '🚗' },
-  { id: 'FLOODING', label: '🌧️ Encharcamiento / Lluvia', icon: '🌧️' }
+  { id: 'FLOODING', label: '🌧️ Encharcamiento', icon: '🌧️' }
 ];
 
 export function ReportIncidentModal({
@@ -41,13 +39,13 @@ export function ReportIncidentModal({
       await apiClient.reportIncident({
         type: category,
         title: `${selectedCat?.label || 'Reporte'}: ${selectedRoute?.name || 'Ruta'}`,
-        description: comment.trim() || 'Reporte de incidencia enviado por pasajero en ruta.',
+        description: comment.trim() || 'Reporte de incidencia enviado por pasajero.',
         lat,
         lng,
         routeId: routeId || null,
         delayMinutes: category === 'HIGH_DELAY' ? 20 : 10,
         createdByRole: 'USER',
-        locationName: `Ubicación reportada (${lat.toFixed(4)}, ${lng.toFixed(4)})`
+        locationName: `GPS (${lat.toFixed(4)}, ${lng.toFixed(4)})`
       });
 
       setSuccess(true);
@@ -57,9 +55,9 @@ export function ReportIncidentModal({
         setSuccess(false);
         setComment('');
         onClose();
-      }, 1400);
+      }, 1200);
     } catch (err) {
-      console.warn('Error al enviar reporte ciudadano:', err);
+      console.warn('Error al enviar reporte:', err);
     } finally {
       setSubmitting(false);
     }
@@ -73,8 +71,8 @@ export function ReportIncidentModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(5px)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(6px)',
         zIndex: 2000,
         display: 'flex',
         alignItems: 'center',
@@ -85,25 +83,25 @@ export function ReportIncidentModal({
       <div
         style={{
           width: '100%',
-          maxWidth: '440px',
+          maxWidth: '420px',
           background: 'rgba(15, 23, 42, 0.98)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          borderRadius: '16px',
-          padding: '20px',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: '14px',
+          padding: '16px',
+          boxShadow: '0 16px 36px rgba(0, 0, 0, 0.6)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '14px'
+          gap: '12px'
         }}
       >
-        {/* Cabecera del Modal */}
+        {/* Cabecera */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div
               style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
+                width: '30px',
+                height: '30px',
+                borderRadius: '6px',
                 background: 'rgba(239, 68, 68, 0.2)',
                 color: '#f87171',
                 display: 'flex',
@@ -111,16 +109,11 @@ export function ReportIncidentModal({
                 justifyContent: 'center'
               }}
             >
-              <AlertTriangle size={18} />
+              <AlertTriangle size={16} />
             </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '15px', color: '#f8fafc', fontWeight: 700 }}>
-                Reportar Incidencia Vial
-              </h3>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                Tu reporte llegará al centro de Soporte Vial de Tuxtla
-              </span>
-            </div>
+            <h3 style={{ margin: 0, fontSize: '14px', color: '#f8fafc', fontWeight: 700 }}>
+              Reportar Incidencia
+            </h3>
           </div>
 
           <button
@@ -141,45 +134,45 @@ export function ReportIncidentModal({
         {success ? (
           <div
             style={{
-              padding: '24px 16px',
+              padding: '20px 12px',
               textAlign: 'center',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '8px'
+              gap: '6px'
             }}
           >
-            <div style={{ fontSize: '36px' }}>✅</div>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#34d399' }}>
-              ¡Reporte enviado exitosamente!
-            </div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-              Soporte Vial revisará la incidencia para alertar a otros usuarios.
+            <div style={{ fontSize: '32px' }}>✅</div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#34d399' }}>
+              Reporte enviado
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* Categoría */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-                ¿QUÉ SUCEDE EN EL TRAYECTO?
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Categoría (Chips) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>
+                INCIDENCIA:
               </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }}>
                 {INCIDENT_CATEGORIES.map((cat) => (
                   <button
                     key={cat.id}
                     type="button"
                     onClick={() => setCategory(cat.id)}
                     style={{
-                      padding: '8px 12px',
-                      background: category === cat.id ? 'rgba(59, 130, 246, 0.25)' : 'rgba(30, 41, 59, 0.5)',
-                      border: category === cat.id ? '1px solid #3b82f6' : '1px solid var(--border-subtle)',
-                      borderRadius: '8px',
-                      color: category === cat.id ? '#93c5fd' : '#cbd5e1',
+                      padding: '6px 8px',
+                      background: category === cat.id ? 'rgba(56, 189, 248, 0.2)' : 'rgba(30, 41, 59, 0.6)',
+                      border: category === cat.id ? '1px solid #38bdf8' : '1px solid transparent',
+                      borderRadius: '6px',
+                      color: category === cat.id ? '#38bdf8' : '#cbd5e1',
                       fontSize: '12px',
                       fontWeight: category === cat.id ? 700 : 500,
                       cursor: 'pointer',
-                      textAlign: 'left'
+                      textAlign: 'left',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}
                   >
                     {cat.label}
@@ -190,17 +183,17 @@ export function ReportIncidentModal({
 
             {/* Ruta Afectada */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-                RUTA O COLECTIVO AFECTADO:
+              <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>
+                COLECTIVO / RUTA:
               </label>
               <select
                 value={routeId}
                 onChange={(e) => setRouteId(e.target.value)}
                 style={{
-                  padding: '8px 10px',
+                  padding: '7px 8px',
                   background: 'rgba(15, 23, 42, 0.8)',
                   border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
+                  borderRadius: '6px',
                   color: '#ffffff',
                   fontSize: '12px',
                   outline: 'none'
@@ -214,48 +207,47 @@ export function ReportIncidentModal({
               </select>
             </div>
 
-            {/* Comentario Adicional */}
+            {/* Comentario Breve */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-                DETALLES ADICIONALES (OPCIONAL):
+              <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>
+                DETALLES (OPCIONAL):
               </label>
-              <textarea
+              <input
+                type="text"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Ej. La unidad no se detuvo en la esquina de la 5ª Norte porque venía sin cupo..."
-                rows={2}
+                placeholder="Breve referencia o ubicación..."
                 style={{
-                  padding: '8px 10px',
+                  padding: '7px 8px',
                   background: 'rgba(15, 23, 42, 0.8)',
                   border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
+                  borderRadius: '6px',
                   color: '#ffffff',
                   fontSize: '12px',
-                  outline: 'none',
-                  resize: 'none'
+                  outline: 'none'
                 }}
               />
             </div>
 
-            {/* Coordenada de referencia */}
-            <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {/* Ubicación */}
+            <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <MapPin size={12} color="#94a3b8" />
               <span>
-                Ubicación del reporte: {userLocation ? `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}` : 'Tuxtla Centro'}
+                {userLocation ? `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}` : 'Tuxtla Centro'}
               </span>
             </div>
 
             {/* Acciones */}
-            <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
               <button
                 type="button"
                 onClick={onClose}
                 style={{
                   flex: 1,
-                  padding: '10px',
+                  padding: '8px',
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
+                  borderRadius: '6px',
                   color: '#cbd5e1',
                   fontSize: '12px',
                   fontWeight: 600,
@@ -270,10 +262,10 @@ export function ReportIncidentModal({
                 disabled={submitting}
                 style={{
                   flex: 2,
-                  padding: '10px',
+                  padding: '8px',
                   background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '6px',
                   color: '#ffffff',
                   fontSize: '12px',
                   fontWeight: 700,
@@ -281,12 +273,11 @@ export function ReportIncidentModal({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px',
-                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                  gap: '6px'
                 }}
               >
-                <Send size={14} />
-                <span>{submitting ? 'Enviando reporte...' : 'Enviar Reporte a Soporte'}</span>
+                <Send size={13} />
+                <span>{submitting ? 'Enviando...' : 'Enviar Reporte'}</span>
               </button>
             </div>
           </form>

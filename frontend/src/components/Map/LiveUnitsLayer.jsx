@@ -15,7 +15,7 @@ function createBusIcon(unit) {
   const dwellSec = Math.ceil(unit.dwellRemainingSec || 15);
 
   const html = `
-    <div style="position: relative; width: 42px; height: 42px;">
+    <div style="position: relative; width: 42px; height: 42px; transition: transform 0.25s linear;">
       <!-- Aura de pulso (Ámbar si sube pasaje, blanco sutil si está en tránsito) -->
       <div style="
         position: absolute;
@@ -43,12 +43,12 @@ function createBusIcon(unit) {
         font-size: ${isBoarding ? '18px' : '16px'};
         position: relative;
         z-index: 2;
-        transition: all 0.3s ease;
+        transition: transform 0.25s linear;
       ">
         ${isBoarding ? '⏸️' : '🚐'}
       </div>
 
-      <!-- Placa e Indicador inferior con tipografía accesible (11px) -->
+      <!-- Placa e Indicador inferior con tipografía accesible (12px) -->
       <div style="
         position: absolute;
         bottom: -18px;
@@ -58,7 +58,7 @@ function createBusIcon(unit) {
         color: #ffffff;
         border: 1px solid ${isBoarding ? '#fbbf24' : 'rgba(255, 255, 255, 0.2)'};
         border-radius: 4px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
         padding: 1px 6px;
         white-space: nowrap;
@@ -110,14 +110,14 @@ export function LiveUnitsLayer({ units = [] }) {
             icon={icon}
           >
             <Tooltip direction="top" offset={[0, -22]}>
-              <div style={{ textAlign: 'center', fontWeight: 600, fontSize: '11px' }}>
+              <div style={{ textAlign: 'center', fontWeight: 600, fontSize: '12px' }}>
                 <div style={{ fontWeight: 800 }}>{unit.unitId} &bull; {unit.routeName}</div>
                 {isBoarding ? (
                   <div style={{ color: '#d97706', fontWeight: 700 }}>
                     ⏸️ Subiendo pasaje ({dwellSec}s)
                   </div>
                 ) : (
-                  <div style={{ color: '#2563eb' }}>
+                  <div style={{ color: '#38bdf8' }}>
                     ⚡ {unit.speedKmh || 30} km/h &bull; {unit.locationName || 'En tránsito'}
                   </div>
                 )}
@@ -134,7 +134,7 @@ export function LiveUnitsLayer({ units = [] }) {
                     borderRadius: '8px',
                     background: color,
                     color: '#ffffff',
-                    fontSize: '11px',
+                    fontSize: '12px',
                     fontWeight: 700,
                     marginBottom: '6px'
                   }}
@@ -162,7 +162,7 @@ export function LiveUnitsLayer({ units = [] }) {
                     <span style={{ fontSize: '16px' }}>⏸️</span>
                     <div>
                       <div>Subiendo pasaje ({dwellSec}s...)</div>
-                      <div style={{ fontSize: '10px', fontWeight: 500, color: '#b45309' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 500, color: '#b45309' }}>
                         Parada: {unit.currentStopName || 'Terminal / Parada'}
                       </div>
                     </div>
@@ -178,7 +178,7 @@ export function LiveUnitsLayer({ units = [] }) {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
-                      fontSize: '11px',
+                      fontSize: '12px',
                       fontWeight: 700,
                       color: '#166534'
                     }}
@@ -209,7 +209,7 @@ export function LiveUnitsLayer({ units = [] }) {
                     </p>
                   )}
 
-                  <p style={{ margin: 0, color: '#94a3b8', fontSize: '10px' }}>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '12px' }}>
                     🌐 GPS: {displayLat.toFixed(5)}, {displayLng.toFixed(5)}
                   </p>
 
@@ -221,20 +221,20 @@ export function LiveUnitsLayer({ units = [] }) {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '4px',
-                      fontSize: '10px',
+                      fontSize: '12px',
                       color: isBoarding ? '#d97706' : '#059669',
                       fontWeight: 700
                     }}
                   >
                     <span
                       style={{
-                        width: '7px',
-                        height: '7px',
+                        width: '8px',
+                        height: '8px',
                         borderRadius: '50%',
                         background: isBoarding ? '#f59e0b' : '#10b981'
                       }}
                     ></span>
-                    {isBoarding ? 'Pausa reglamentaria de ascenso de pasaje' : 'Motor cinemático LERP activo'}
+                    {isBoarding ? 'Ascenso de pasaje activo' : 'Motor cinemático activo'}
                   </div>
                 </div>
               </div>

@@ -106,7 +106,7 @@ export function PlannedTripLayer({ selectedTrip }) {
               <div style={{ fontFamily: 'inherit', color: '#0f172a' }}>
                 <strong style={{ color: '#059669' }}>🟢 Subir a la combi aquí</strong>
                 <div style={{ fontSize: '12px', fontWeight: 600 }}>{selectedTrip.originStop.name}</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
                   Ruta: {selectedTrip.routeName}
                 </div>
               </div>
@@ -124,7 +124,7 @@ export function PlannedTripLayer({ selectedTrip }) {
               <div style={{ fontFamily: 'inherit', color: '#0f172a' }}>
                 <strong style={{ color: '#dc2626' }}>🏁 Bajar de la combi aquí</strong>
                 <div style={{ fontSize: '12px', fontWeight: 600 }}>{selectedTrip.destStop.name}</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
                   Destino final alcanzado
                 </div>
               </div>
@@ -195,7 +195,7 @@ export function PlannedTripLayer({ selectedTrip }) {
               <div style={{ fontFamily: 'inherit', color: '#0f172a' }}>
                 <strong style={{ color: '#2563eb' }}>🟢 1. Abordar primera combi</strong>
                 <div style={{ fontSize: '12px', fontWeight: 600 }}>{originStop.name}</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
                   {selectedTrip.firstRoute.name}
                 </div>
               </div>
@@ -210,7 +210,7 @@ export function PlannedTripLayer({ selectedTrip }) {
               <div style={{ fontFamily: 'inherit', color: '#0f172a' }}>
                 <strong style={{ color: '#d97706' }}>🔄 2. Nodo de Transbordo</strong>
                 <div style={{ fontSize: '12px', fontWeight: 600 }}>{selectedTrip.transferNode?.nodeName || transferStop1.name}</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
                   Caminar ~{selectedTrip.transferNode?.walkMeters || 100} m para abordar {selectedTrip.secondRoute.name}
                 </div>
               </div>
@@ -225,7 +225,7 @@ export function PlannedTripLayer({ selectedTrip }) {
               <div style={{ fontFamily: 'inherit', color: '#0f172a' }}>
                 <strong style={{ color: '#dc2626' }}>🏁 3. Bajar en destino final</strong>
                 <div style={{ fontSize: '12px', fontWeight: 600 }}>{destStop.name}</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
                   {selectedTrip.secondRoute.name}
                 </div>
               </div>

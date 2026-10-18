@@ -69,10 +69,10 @@ export function PersonalPointsMarkers({
                 <div style={{ fontWeight: 800, fontSize: '13px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <span>{name}</span>
                 </div>
-                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px' }}>
+                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>
                   {point.label || desc}
                 </div>
-                <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '8px' }}>
+                <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>
                   {point.lat.toFixed(4)}, {point.lng.toFixed(4)}
                 </div>
 
@@ -84,7 +84,7 @@ export function PersonalPointsMarkers({
                       style={{
                         flex: 1,
                         padding: '4px 6px',
-                        fontSize: '10px',
+                        fontSize: '12px',
                         fontWeight: 700,
                         background: '#3b82f6',
                         color: '#ffffff',
@@ -103,7 +103,7 @@ export function PersonalPointsMarkers({
                       style={{
                         flex: 1,
                         padding: '4px 6px',
-                        fontSize: '10px',
+                        fontSize: '12px',
                         fontWeight: 700,
                         background: '#10b981',
                         color: '#ffffff',

@@ -104,7 +104,7 @@ export function RoadAlertMarkers({ incidents = [], routes = [] }) {
                   </strong>
                 </div>
 
-                <div style={{ fontSize: '11px', color: '#334155', marginBottom: '6px', lineHeight: '1.4' }}>
+                <div style={{ fontSize: '12px', color: '#334155', marginBottom: '6px', lineHeight: '1.4' }}>
                   {alert.description}
                 </div>
 
@@ -116,7 +116,7 @@ export function RoadAlertMarkers({ incidents = [], routes = [] }) {
                         color: '#ffffff',
                         padding: '2px 6px',
                         borderRadius: '4px',
-                        fontSize: '10px',
+                        fontSize: '12px',
                         fontWeight: 700
                       }}
                     >
@@ -131,7 +131,7 @@ export function RoadAlertMarkers({ incidents = [], routes = [] }) {
                     border: '1px solid #fecaca',
                     borderRadius: '6px',
                     padding: '4px 6px',
-                    fontSize: '10px',
+                    fontSize: '12px',
                     color: '#b91c1c',
                     fontWeight: 700,
                     display: 'flex',
@@ -143,7 +143,7 @@ export function RoadAlertMarkers({ incidents = [], routes = [] }) {
                   <span>+{alert.delayMinutes || 15} minutos</span>
                 </div>
 
-                <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '6px' }}>
+                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>
                   Reportado: {new Date(alert.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>

@@ -66,11 +66,11 @@ export function StopMarkers({
                 <strong style={{ fontSize: '13px', display: 'block', color: '#1e40af' }}>
                   📍 Tu Punto Seleccionado
                 </strong>
-                <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#64748b' }}>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>
                   {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
                 </p>
-                <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#059669', fontWeight: 600 }}>
-                  Radio de búsqueda: {searchRadius}m
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#059669', fontWeight: 600 }}>
+                  Radio: {searchRadius}m
                 </p>
               </div>
             </Popup>
@@ -99,12 +99,25 @@ export function StopMarkers({
         const route = routeMap.get(stop.routeId);
         const routeColor = stop.routeColor || route?.color || '#059669';
         const routeName = stop.routeName || route?.name || 'Transporte Colectivo';
-        const isRouteSelected = selectedRouteId && stop.routeId === selectedRouteId;
+        const isRouteSelected = Boolean(selectedRouteId && stop.routeId === selectedRouteId);
         const isActive = activeStop?.id === stop.id;
 
-        // Tamaño y estilo visual dinámico
-        const radius = isActive ? 9 : isRouteSelected ? 7 : 5;
-        const weight = isActive ? 3 : 2;
+        // Estilo discreto cuando no hay ruta seleccionada para no saturar Tuxtla; destacado al seleccionar ruta
+        const radius = isActive
+          ? 8.5
+          : selectedRouteId
+            ? (isRouteSelected ? 6.5 : 3.5)
+            : 3.5;
+        const fillOpacity = isActive
+          ? 0.95
+          : selectedRouteId
+            ? (isRouteSelected ? 0.9 : 0.25)
+            : 0.55;
+        const weight = isActive
+          ? 2.5
+          : selectedRouteId
+            ? (isRouteSelected ? 2 : 1)
+            : 1;
         const borderColor = isActive ? '#fbbf24' : '#ffffff';
 
         return (
@@ -115,7 +128,7 @@ export function StopMarkers({
             pathOptions={{
               color: borderColor,
               fillColor: routeColor,
-              fillOpacity: 0.95,
+              fillOpacity,
               weight
             }}
             eventHandlers={{
@@ -127,7 +140,7 @@ export function StopMarkers({
             }}
           >
             <Tooltip direction="top" offset={[0, -6]}>
-              <span style={{ fontWeight: 600 }}>
+              <span style={{ fontWeight: 600, fontSize: '12px' }}>
                 {stop.stopOrder ? `#${stop.stopOrder} ` : ''}
                 {stop.name}
               </span>
@@ -142,7 +155,7 @@ export function StopMarkers({
                     borderRadius: '12px',
                     background: routeColor,
                     color: '#ffffff',
-                    fontSize: '10px',
+                    fontSize: '12px',
                     fontWeight: 700,
                     marginBottom: '6px'
                   }}
@@ -155,26 +168,26 @@ export function StopMarkers({
                 </h4>
 
                 {stop.stopOrder && (
-                  <p style={{ margin: '2px 0', fontSize: '11px', color: '#64748b' }}>
-                    <strong>Orden en ruta:</strong> Parada #{stop.stopOrder}
+                  <p style={{ margin: '2px 0', fontSize: '12px', color: '#64748b' }}>
+                    <strong>Orden:</strong> #{stop.stopOrder}
                   </p>
                 )}
 
                 {stop.distanceMeters !== undefined && stop.distanceMeters !== null && (
-                  <p style={{ margin: '4px 0 2px 0', fontSize: '11px', color: '#2563eb', fontWeight: 600 }}>
-                    🚶 A {stop.distanceMeters} m ({stop.walkingTimeMinutes || Math.ceil(stop.distanceMeters / 80)} min caminando)
+                  <p style={{ margin: '4px 0 2px 0', fontSize: '12px', color: '#2563eb', fontWeight: 600 }}>
+                    🚶 {stop.distanceMeters} m ({stop.walkingTimeMinutes || Math.ceil(stop.distanceMeters / 80)} min)
                   </p>
                 )}
 
                 {stop.nextBusMinutes !== undefined && stop.nextBusMinutes !== null && (
-                  <p style={{ margin: '2px 0', fontSize: '11px', color: '#059669', fontWeight: 600 }}>
-                    🚌 Próxima unidad en aprox. {stop.nextBusMinutes} min
+                  <p style={{ margin: '2px 0', fontSize: '12px', color: '#059669', fontWeight: 600 }}>
+                    🚌 Próxima unidad: ~{stop.nextBusMinutes} min
                   </p>
                 )}
 
                 {route?.scheduleInfo && (
-                  <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '4px' }}>
-                    Frecuencia habitual: cada {route.scheduleInfo.frequencyMinutes} min
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '4px' }}>
+                    Frecuencia: cada {route.scheduleInfo.frequencyMinutes} min
                   </p>
                 )}
               </div>

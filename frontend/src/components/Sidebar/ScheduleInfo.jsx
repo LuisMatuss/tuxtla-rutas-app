@@ -1,4 +1,4 @@
-// Componente de Panel Lateral: Horarios, Timeline de paradas y Calculador de paradas cercanas
+// Componente de Panel Lateral: Horarios, Timeline de paradas y Paradas cercanas (Zero-Slop, Apple Maps style)
 import React from 'react';
 import { Clock, Navigation, MapPin, Footprints, Bus, CheckCircle2 } from 'lucide-react';
 
@@ -21,27 +21,28 @@ export function ScheduleInfo({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* SECCIÓN 1: PARADAS MÁS CERCANAS A TU PUNTO (GEOLOCALIZACIÓN) */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* SECCIÓN 1: PARADAS CERCANAS (ESTILO APPLE MAPS) */}
       <div
         style={{
-          background: 'rgba(15, 23, 42, 0.75)',
-          border: userLocation ? '1.5px solid #3b82f6' : '1px solid var(--border-subtle)',
+          background: 'rgba(15, 23, 42, 0.7)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
-          padding: '14px',
-          boxShadow: userLocation ? '0 0 16px rgba(59, 130, 246, 0.15)' : 'none',
-          transition: 'all 0.3s ease'
+          padding: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Navigation size={16} color="#3b82f6" />
-            <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#f8fafc' }}>
-              Paradas Cercanas a tu Punto
+            <Navigation size={15} color="#38bdf8" />
+            <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+              Paradas Cercanas
             </h3>
           </div>
 
-          {userLocation && (
+          {userLocation ? (
             <button
               type="button"
               onClick={onClearLocation}
@@ -49,28 +50,49 @@ export function ScheduleInfo({
                 background: 'transparent',
                 border: 'none',
                 color: '#94a3b8',
-                fontSize: '11px',
+                fontSize: '12px',
                 cursor: 'pointer',
                 textDecoration: 'underline'
               }}
             >
               Limpiar
             </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onSimulateLocation && onSimulateLocation(16.7516, -93.1161)}
+              style={{
+                background: 'rgba(56, 189, 248, 0.12)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '6px',
+                color: '#38bdf8',
+                fontSize: '12px',
+                fontWeight: 600,
+                padding: '3px 8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <MapPin size={12} />
+              <span>Parque Central</span>
+            </button>
           )}
         </div>
 
-        {userLocation ? (
+        {userLocation && (
           <div>
-            <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '10px' }}>
-              📍 Coordenadas: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
+              📍 GPS: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
             </div>
 
             {loadingNearest ? (
-              <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-                Buscando paradas próximas...
+              <div style={{ padding: '10px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
+                Buscando paradas...
               </div>
             ) : nearestStops.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {nearestStops.map((stop) => {
                   const isStopActive = activeStop?.id === stop.id;
                   const routeColor = stop.routeColor || '#2563EB';
@@ -80,42 +102,53 @@ export function ScheduleInfo({
                       key={stop.id || `${stop.lat}-${stop.lng}`}
                       onClick={() => onSelectStop && onSelectStop(stop)}
                       style={{
-                        padding: '10px',
-                        borderRadius: '8px',
-                        background: isStopActive ? 'rgba(59, 130, 246, 0.2)' : 'rgba(30, 41, 59, 0.6)',
-                        border: isStopActive ? '1px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.05)',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        background: isStopActive ? 'rgba(56, 189, 248, 0.16)' : 'transparent',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
                         cursor: 'pointer',
-                        transition: 'all 0.15s ease'
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                        transition: 'background 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isStopActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isStopActive) e.currentTarget.style.background = 'transparent';
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <strong style={{ fontSize: '12px', color: '#ffffff' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {stop.name}
-                        </strong>
+                        </div>
+                      </div>
+
+                      {/* Chips estilo Apple Maps: 1 sola línea */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <Footprints size={12} />
+                          {stop.distanceMeters}m
+                        </span>
+
+                        <span style={{ fontSize: '12px', color: '#34d399', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <Bus size={12} />
+                          ~{stop.nextBusMinutes}m
+                        </span>
 
                         <span
                           style={{
-                            background: `${routeColor}20`,
+                            background: `${routeColor}25`,
                             color: routeColor,
-                            fontSize: '10px',
+                            fontSize: '12px',
                             fontWeight: 700,
                             padding: '1px 6px',
-                            borderRadius: '6px'
+                            borderRadius: '4px'
                           }}
                         >
                           {stop.routeName || 'Ruta'}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px' }}>
-                        <span style={{ color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <Footprints size={12} />
-                          {stop.distanceMeters} m ({stop.walkingTimeMinutes} min)
-                        </span>
-
-                        <span style={{ color: '#34d399', display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
-                          <Bus size={12} />
-                          Próximo: ~{stop.nextBusMinutes} min
                         </span>
                       </div>
                     </div>
@@ -123,122 +156,114 @@ export function ScheduleInfo({
                 })}
               </div>
             ) : (
-              <p style={{ fontSize: '12px', color: '#94a3b8' }}>
-                No se encontraron paradas en un radio de 1.5 km.
-              </p>
+              <div style={{ fontSize: '12px', color: '#94a3b8', padding: '6px 0' }}>
+                Sin paradas en 1.5 km.
+              </div>
             )}
-          </div>
-        ) : (
-          <div>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: '1.4' }}>
-              Haz clic en el mapa o usa el botón directo para calcular paradas cercanas y tiempos de caminata.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => onSimulateLocation && onSimulateLocation(16.7516, -93.1161)}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                background: 'rgba(59, 130, 246, 0.15)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                borderRadius: '8px',
-                color: '#93c5fd',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                transition: 'background 0.2s ease'
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(59, 130, 246, 0.25)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)')}
-            >
-              <MapPin size={14} />
-              Simular punto en Parque Central
-            </button>
           </div>
         )}
       </div>
 
-      {/* SECCIÓN 2: INFORMACIÓN DE RUTA Y HORARIOS */}
+      {/* SECCIÓN 2: HORARIOS Y RECORRIDO */}
       {route ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* Métricas de horario */}
-          <div
-            style={{
-              padding: '14px',
-              background: 'rgba(15, 23, 42, 0.65)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clock size={16} color={route.color || '#2563EB'} />
-                <h4 style={{ fontSize: '13px', fontWeight: 600 }}>Horarios y Frecuencias</h4>
-              </div>
-
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  color: '#34d399',
-                  fontSize: '11px',
-                  fontWeight: 600
-                }}
-              >
-                <CheckCircle2 size={12} />
-                En Servicio
-              </span>
+        <div
+          style={{
+            background: 'rgba(15, 23, 42, 0.7)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            padding: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+          }}
+        >
+          {/* Cabecera de Horarios */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Clock size={15} color={route.color || '#38bdf8'} />
+              <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+                Horarios y Servicio
+              </h4>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
-              <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: '8px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8', fontSize: '10px', display: 'block' }}>PRIMERA CORRIDA</span>
-                <strong style={{ color: '#f8fafc', fontSize: '13px' }}>{schedule.firstRun || '05:30'}</strong>
-              </div>
-
-              <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: '8px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8', fontSize: '10px', display: 'block' }}>ÚLTIMA CORRIDA</span>
-                <strong style={{ color: '#f8fafc', fontSize: '13px' }}>{schedule.lastRun || '22:00'}</strong>
-              </div>
-
-              <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: '8px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8', fontSize: '10px', display: 'block' }}>FRECUENCIA PROMEDIO</span>
-                <strong style={{ color: '#f8fafc', fontSize: '13px' }}>cada {schedule.frequencyMinutes || 8} min</strong>
-              </div>
-
-              <div style={{ background: 'rgba(30, 41, 59, 0.5)', padding: '8px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8', fontSize: '10px', display: 'block' }}>ESPERA ESTIMADA</span>
-                <strong style={{ color: '#38bdf8', fontSize: '13px' }}>~{schedule.estimatedWaitMinutes || 4} min</strong>
-              </div>
-            </div>
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: '#34d399',
+                fontSize: '12px',
+                fontWeight: 600
+              }}
+            >
+              <CheckCircle2 size={13} />
+              Operativo
+            </span>
           </div>
 
-          {/* Timeline de Paradas */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <h4 style={{ fontSize: '13px', fontWeight: 600, color: '#f8fafc' }}>
-                Recorrido de Paradas ({route.stops?.length || 0})
-              </h4>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Clic para centrar</span>
+          {/* Ribbon de Chips Estilo Apple Maps (Sin sub-tarjetas anidadas) */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <span
+              style={{
+                background: 'rgba(56, 189, 248, 0.12)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600
+              }}
+            >
+              ⏱️ Frecuencia: {schedule.frequencyMinutes || 8} min
+            </span>
+
+            <span
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: '#f8fafc',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600
+              }}
+            >
+              🌅 {schedule.firstRun || '05:30'} - {schedule.lastRun || '22:00'}
+            </span>
+
+            <span
+              style={{
+                background: 'rgba(16, 185, 129, 0.12)',
+                color: '#34d399',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 600
+              }}
+            >
+              ⏳ Espera: ~{schedule.estimatedWaitMinutes || 4} min
+            </span>
+          </div>
+
+          {/* Timeline de Paradas de 1 Sola Línea */}
+          <div style={{ marginTop: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8' }}>
+                PARADAS ({route.stops?.length || 0})
+              </span>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                Toca para ubicar
+              </span>
             </div>
 
             <div
               style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '4px',
-                maxHeight: '280px',
-                overflowY: 'auto',
-                paddingRight: '4px'
+                gap: '2px',
+                maxHeight: '260px',
+                overflowY: 'auto'
               }}
             >
               {route.stops && route.stops.length > 0 ? (
@@ -252,11 +277,10 @@ export function ScheduleInfo({
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '10px',
-                        padding: '7px 10px',
+                        gap: '8px',
+                        padding: '6px 8px',
                         borderRadius: '6px',
-                        background: isStopActive ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
-                        border: isStopActive ? '1px solid #3b82f6' : '1px solid transparent',
+                        background: isStopActive ? 'rgba(56, 189, 248, 0.18)' : 'transparent',
                         cursor: 'pointer',
                         transition: 'background 0.15s ease'
                       }}
@@ -267,18 +291,17 @@ export function ScheduleInfo({
                         if (!isStopActive) e.currentTarget.style.background = 'transparent';
                       }}
                     >
-                      {/* Número de secuencia */}
                       <span
                         style={{
-                          width: '22px',
-                          height: '22px',
+                          width: '20px',
+                          height: '20px',
                           borderRadius: '50%',
-                          background: isStopActive ? '#3b82f6' : `${route.color || '#2563EB'}30`,
-                          color: isStopActive ? '#ffffff' : route.color || '#2563EB',
+                          background: isStopActive ? '#0284c7' : 'rgba(255, 255, 255, 0.08)',
+                          color: isStopActive ? '#ffffff' : '#94a3b8',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '11px',
+                          fontSize: '12px',
                           fontWeight: 700,
                           flexShrink: 0
                         }}
@@ -291,7 +314,9 @@ export function ScheduleInfo({
                           fontSize: '12px',
                           color: isStopActive ? '#ffffff' : '#cbd5e1',
                           fontWeight: isStopActive ? 600 : 400,
-                          lineHeight: '1.3'
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
                         }}
                       >
                         {stop.name}
@@ -300,9 +325,9 @@ export function ScheduleInfo({
                   );
                 })
               ) : (
-                <p style={{ fontSize: '12px', color: '#94a3b8', padding: '8px' }}>
-                  No hay paradas registradas para esta ruta.
-                </p>
+                <div style={{ fontSize: '12px', color: '#94a3b8', padding: '6px 0' }}>
+                  Sin paradas registradas.
+                </div>
               )}
             </div>
           </div>
@@ -310,8 +335,8 @@ export function ScheduleInfo({
       ) : (
         <div
           style={{
-            padding: '16px',
-            background: 'rgba(15, 23, 42, 0.4)',
+            padding: '14px',
+            background: 'rgba(15, 23, 42, 0.5)',
             borderRadius: 'var(--radius-md)',
             border: '1px dashed var(--border-subtle)',
             textAlign: 'center',
@@ -319,7 +344,7 @@ export function ScheduleInfo({
             color: 'var(--text-muted)'
           }}
         >
-          Selecciona una ruta de la lista para ver su horario completo y el recorrido de paradas paso a paso.
+          Selecciona una ruta para ver paradas y horarios.
         </div>
       )}
     </div>

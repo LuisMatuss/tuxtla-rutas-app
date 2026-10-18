@@ -194,7 +194,7 @@ export function RouteSelector({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {/* Badge de Estado Operativo Accesible (>= 11px, >= 4.5:1) */}
+                    {/* Badge de Estado Operativo Accesible (>= 12px, >= 4.5:1) */}
                     {isSuspended ? (
                       <span
                         style={{
@@ -202,7 +202,7 @@ export function RouteSelector({
                           color: '#fca5a5',
                           padding: '2px 7px',
                           borderRadius: '6px',
-                          fontSize: '11px',
+                          fontSize: '12px',
                           fontWeight: 700
                         }}
                       >
@@ -215,7 +215,7 @@ export function RouteSelector({
                           color: '#fde047',
                           padding: '2px 7px',
                           borderRadius: '6px',
-                          fontSize: '11px',
+                          fontSize: '12px',
                           fontWeight: 700
                         }}
                       >
@@ -228,7 +228,7 @@ export function RouteSelector({
                           color: '#f8fafc',
                           padding: '2px 7px',
                           borderRadius: '6px',
-                          fontSize: '11px',
+                          fontSize: '12px',
                           fontWeight: 700
                         }}
                       >
@@ -275,7 +275,7 @@ export function RouteSelector({
                   {route.description}
                 </p>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: '#cbd5e1' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#cbd5e1' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <MapPin size={12} color={routeColor} />
                     {stopsCount} paradas
