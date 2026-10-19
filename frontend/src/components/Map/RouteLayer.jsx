@@ -23,15 +23,13 @@ export function RouteLayer({
   directionFilter = 'ALL',
   onSelectRoute
 }) {
-  // Filtrar únicamente rutas visibles (o la ruta seleccionada)
+  // Filtrar únicamente rutas visibles (o la ruta seleccionada): SOLO visibleRouteIds.includes(routeId) || selectedRouteId === routeId
   const activeRoutes = useMemo(() => {
     if (!routes || routes.length === 0) return [];
     return routes.filter((route) => {
-      if (selectedRouteId === route.id) return true;
-      if (visibleRouteIds && Array.isArray(visibleRouteIds) && visibleRouteIds.length > 0) {
-        return visibleRouteIds.includes(route.id);
-      }
-      return false;
+      const isVisible = Array.isArray(visibleRouteIds) ? visibleRouteIds.includes(route.id) : false;
+      const isSelected = Boolean(selectedRouteId && selectedRouteId === route.id);
+      return isVisible || isSelected;
     });
   }, [routes, visibleRouteIds, selectedRouteId]);
 

@@ -374,6 +374,8 @@ export function MapView({
 
                 <button
                   type="button"
+                  id="btn-limpiar-mapa"
+                  title="Limpiar Mapa"
                   onClick={() => {
                     if (onClearAllRoutes) onClearAllRoutes();
                   }}
@@ -388,7 +390,7 @@ export function MapView({
                     cursor: 'pointer'
                   }}
                 >
-                  🧹 Limpiar
+                  🧹 Limpiar Mapa
                 </button>
 
                 <button

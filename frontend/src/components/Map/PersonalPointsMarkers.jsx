@@ -46,9 +46,9 @@ export function PersonalPointsMarkers({
   onSelectPointAsDest
 }) {
   const points = [
-    { key: 'casa', name: '🏠 Mi Casa', point: personalPoints.casa, desc: 'Zona Sur / Terán' },
-    { key: 'escuela', name: '🎓 Escuela / UNACH', point: personalPoints.escuela, desc: 'Campus I / Blvd. Belisario Domínguez' },
-    { key: 'trabajo', name: '💼 Mi Trabajo', point: personalPoints.trabajo, desc: 'Parque Central / Centro Tuxtla' }
+    { key: 'casa', name: '🏠 Mi Casa', point: personalPoints?.home || personalPoints?.casa, desc: 'Ubicación de Casa' },
+    { key: 'escuela', name: '🎓 Escuela', point: personalPoints?.school || personalPoints?.escuela, desc: 'Ubicación de Escuela' },
+    { key: 'trabajo', name: '💼 Mi Trabajo', point: personalPoints?.work || personalPoints?.trabajo, desc: 'Ubicación de Trabajo' }
   ];
 
   return (

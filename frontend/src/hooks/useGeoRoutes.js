@@ -42,7 +42,8 @@ export function useGeoRoutes() {
     }
   }, []);
 
-  // Sondeo de telemetría en tiempo real desde el backend (cada 2.5s)
+  // Sondeo de telemetría en tiempo real desde el backend (cada 4s)
+  // El bucle cinemático local de 250ms es la única autoridad de posición para evitar saltos hacia atrás (rubber-banding)
   const pollTelemetry = useCallback(async () => {
     try {
       const res = await apiClient.fetchTelemetry();
@@ -54,31 +55,58 @@ export function useGeoRoutes() {
               lat: Number(u.lat),
               lng: Number(u.lng),
               animLat: Number(u.lat),
-              animLng: Number(u.lng)
+              animLng: Number(u.lng),
+              currentVertexIndex: u.currentVertexIndex ?? 0,
+              segmentProgress: u.segmentProgress ?? 0
             }));
           }
 
           const prevMap = new Map(prevUnits.map((u) => [u.unitId, u]));
-          return res.data.map((fresh) => {
-            const prev = prevMap.get(fresh.unitId);
-            const freshLat = Number(fresh.lat);
-            const freshLng = Number(fresh.lng);
+          const incomingIds = new Set(res.data.map((u) => u.unitId));
 
-            // Sincronizar coordenadas autoritativas asegurando que sean números válidos
-            const validLat = Number.isFinite(freshLat) ? freshLat : prev?.lat;
-            const validLng = Number.isFinite(freshLng) ? freshLng : prev?.lng;
+          // 1. Conservar unidades existentes: la cinemática local de 250ms es la única autoridad sobre la posición y progreso
+          const updatedExisting = prevUnits
+            .filter((u) => incomingIds.has(u.unitId))
+            .map((prev) => {
+              const fresh = res.data.find((f) => f.unitId === prev.unitId);
+              if (!fresh) return prev;
+              return {
+                ...fresh,
+                // Preservar estrictamente el estado cinemático local autoritativo (cero rubber-banding)
+                lat: prev.lat,
+                lng: prev.lng,
+                animLat: prev.animLat ?? prev.lat,
+                animLng: prev.animLng ?? prev.lng,
+                currentVertexIndex: prev.currentVertexIndex,
+                segmentProgress: prev.segmentProgress,
+                status: prev.status,
+                dwellRemainingSec: prev.dwellRemainingSec,
+                direction: prev.direction,
+                directionType: prev.directionType ?? fresh.directionType,
+                currentStopIndex: prev.currentStopIndex,
+                targetStopIndex: prev.targetStopIndex,
+                nextStopIndex: prev.nextStopIndex,
+                speedKmh: prev.speedKmh,
+                currentStopName: prev.currentStopName,
+                nextStopName: prev.nextStopName,
+                locationName: prev.locationName
+              };
+            });
 
-            return {
+          // 2. Agregar únicamente unidades nuevas si el Admin despachó una combi extra
+          const newUnits = res.data
+            .filter((fresh) => !prevMap.has(fresh.unitId))
+            .map((fresh) => ({
               ...fresh,
-              lat: validLat,
-              lng: validLng,
-              animLat: validLat,
-              animLng: validLng,
-              currentVertexIndex: fresh.currentVertexIndex !== undefined ? fresh.currentVertexIndex : prev?.currentVertexIndex,
-              segmentProgress: fresh.segmentProgress !== undefined ? fresh.segmentProgress : prev?.segmentProgress,
-              targetStopIndex: fresh.targetStopIndex !== undefined ? fresh.targetStopIndex : prev?.targetStopIndex
-            };
-          });
+              lat: Number(fresh.lat),
+              lng: Number(fresh.lng),
+              animLat: Number(fresh.lat),
+              animLng: Number(fresh.lng),
+              currentVertexIndex: fresh.currentVertexIndex ?? 0,
+              segmentProgress: fresh.segmentProgress ?? 0
+            }));
+
+          return [...updatedExisting, ...newUnits];
         });
       }
     } catch (err) {
@@ -91,12 +119,12 @@ export function useGeoRoutes() {
     loadRoutes();
   }, [loadRoutes]);
 
-  // 2. Efecto de sondeo continuo del servidor
+  // 2. Efecto de sondeo continuo del servidor cada 4s
   useEffect(() => {
     pollTelemetry();
     const pollTimer = setInterval(() => {
       pollTelemetry();
-    }, 2500);
+    }, 4000);
 
     return () => {
       clearInterval(pollTimer);
@@ -128,9 +156,10 @@ export function useGeoRoutes() {
     setVisibleRouteIds(allIds);
   }, []);
 
-  // Limpiar mapa (ninguna ruta visible)
+  // Limpiar mapa (ninguna ruta visible ni seleccionada)
   const clearAllRoutes = useCallback(() => {
     setVisibleRouteIds([]);
+    setSelectedRouteId(null);
   }, []);
 
   // Mostrar rutas favoritas (por defecto Ruta 1 y Ruta 43)
@@ -190,7 +219,7 @@ export function useGeoRoutes() {
             if (remaining <= 0) {
               hasChanged = true;
               let proposed = (unit.targetStopIndex ?? 1) + 1;
-              let nextVIdx = 0;
+              let nextVIdx = unit.currentVertexIndex ?? 0;
               let currentS = unit.targetStopIndex ?? 1;
 
               if (proposed >= stops.length) {
@@ -199,7 +228,11 @@ export function useGeoRoutes() {
                 proposed = 1;
                 nextVIdx = 0;
               } else {
-                nextVIdx = stopIndices[currentS] ?? (unit.currentVertexIndex || 0);
+                // Avance estrictamente monótono: no retroceder el índice de vértice
+                const stopVIdx = stopIndices[currentS];
+                if (typeof stopVIdx === 'number' && stopVIdx >= nextVIdx) {
+                  nextVIdx = stopVIdx;
+                }
               }
 
               const nextStop = stops[proposed];

@@ -96,12 +96,11 @@ export function LiveUnitsLayer({
   const filteredUnits = useMemo(() => {
     if (!Array.isArray(units) || units.length === 0) return [];
     return units.filter((unit) => {
-      // 1. Filtrar por visibilidad de ruta
-      if (visibleRouteIds && Array.isArray(visibleRouteIds) && visibleRouteIds.length > 0) {
-        const isVisible = visibleRouteIds.includes(unit.routeId);
-        const isSelected = selectedRouteId === unit.routeId;
-        if (!isVisible && !isSelected) return false;
-      }
+      // 1. Filtrado estricto: una combi SOLO se renderiza si visibleRouteIds.includes(routeId) || selectedRouteId === routeId
+      const isVisible = Array.isArray(visibleRouteIds) ? visibleRouteIds.includes(unit.routeId) : false;
+      const isSelected = Boolean(selectedRouteId && selectedRouteId === unit.routeId);
+      if (!isVisible && !isSelected) return false;
+
       // 2. Filtrar por sentido de circulación (Ida / Vuelta)
       if (directionFilter === 'IDA' && unit.directionType === 'VUELTA') {
         return false;

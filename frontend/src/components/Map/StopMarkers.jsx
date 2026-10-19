@@ -21,15 +21,13 @@ export function StopMarkers({
     return map;
   }, [routes]);
 
-  // Filtrar paradas para mostrar exclusivamente las de rutas visibles en el mapa o la seleccionada
+  // Filtrar paradas para mostrar exclusivamente las de rutas visibles en el mapa o la seleccionada: SOLO visibleRouteIds.includes(routeId) || selectedRouteId === routeId
   const activeStops = React.useMemo(() => {
     if (!Array.isArray(stops)) return [];
     return stops.filter((stop) => {
-      if (selectedRouteId && stop.routeId === selectedRouteId) return true;
-      if (visibleRouteIds && Array.isArray(visibleRouteIds) && visibleRouteIds.length > 0) {
-        return visibleRouteIds.includes(stop.routeId);
-      }
-      return false;
+      const isVisible = Array.isArray(visibleRouteIds) ? visibleRouteIds.includes(stop.routeId) : false;
+      const isSelected = Boolean(selectedRouteId && stop.routeId === selectedRouteId);
+      return isVisible || isSelected;
     });
   }, [stops, visibleRouteIds, selectedRouteId]);
 

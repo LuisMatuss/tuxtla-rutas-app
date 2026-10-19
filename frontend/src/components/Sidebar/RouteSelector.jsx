@@ -9,33 +9,22 @@ export function RouteSelector({
   routes = [],
   selectedRouteId = null,
   visibleRouteIds = [],
+  favoriteIds = [],
+  onToggleFavorite,
   onSelectRoute,
-  onToggleRouteVisibility
+  onToggleRouteVisibility,
+  onShowAllRoutes,
+  onClearAllRoutes
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFavorites, setFilterFavorites] = useState(false);
-  const [favorites, setFavorites] = useState(() => {
-    try {
-      const saved = localStorage.getItem(FAVORITES_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : ['r-001', 'r-002']; // Favoritas iniciales
-    } catch {
-      return ['r-001', 'r-002'];
-    }
-  });
+  const favorites = Array.isArray(favoriteIds) ? favoriteIds : [];
 
-  const toggleFavorite = (routeId, e) => {
+  const handleToggleFavorite = (routeId, e) => {
     e.stopPropagation();
-    setFavorites((prev) => {
-      const next = prev.includes(routeId)
-        ? prev.filter((id) => id !== routeId)
-        : [...prev, routeId];
-      try {
-        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next));
-      } catch (err) {
-        console.warn('Error al guardar favoritos:', err);
-      }
-      return next;
-    });
+    if (onToggleFavorite) {
+      onToggleFavorite(routeId);
+    }
   };
 
   const filteredRoutes = useMemo(() => {
@@ -89,20 +78,21 @@ export function RouteSelector({
       </div>
 
       {/* Botones de Filtro Rápido */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
         {/* Botón para ver Todas las Rutas */}
         <button
           type="button"
           onClick={() => {
             setFilterFavorites(false);
             onSelectRoute(null);
+            if (onShowAllRoutes) onShowAllRoutes();
           }}
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px',
-            padding: '9px 10px',
+            gap: '5px',
+            padding: '8px 6px',
             borderRadius: 'var(--radius-md)',
             border: !selectedRouteId && !filterFavorites ? '1.5px solid var(--color-primary-light)' : '1px solid var(--border-subtle)',
             background: !selectedRouteId && !filterFavorites ? 'rgba(16, 185, 129, 0.15)' : 'rgba(30, 41, 59, 0.5)',
@@ -114,7 +104,7 @@ export function RouteSelector({
             transition: 'all 0.2s ease'
           }}
         >
-          <Layers size={14} color={!selectedRouteId && !filterFavorites ? '#10b981' : '#94a3b8'} />
+          <Layers size={13} color={!selectedRouteId && !filterFavorites ? '#10b981' : '#94a3b8'} />
           <span>Todas ({routes.length})</span>
         </button>
 
@@ -126,8 +116,8 @@ export function RouteSelector({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px',
-            padding: '9px 10px',
+            gap: '5px',
+            padding: '8px 6px',
             borderRadius: 'var(--radius-md)',
             border: filterFavorites ? '1.5px solid #fbbf24' : '1px solid var(--border-subtle)',
             background: filterFavorites ? 'rgba(251, 191, 36, 0.15)' : 'rgba(30, 41, 59, 0.5)',
@@ -139,8 +129,36 @@ export function RouteSelector({
             transition: 'all 0.2s ease'
           }}
         >
-          <Star size={14} fill={filterFavorites ? '#fbbf24' : 'none'} color="#fbbf24" />
+          <Star size={13} fill={filterFavorites ? '#fbbf24' : 'none'} color="#fbbf24" />
           <span>Favoritas ({favorites.length})</span>
+        </button>
+
+        {/* Botón Limpiar Mapa */}
+        <button
+          type="button"
+          id="btn-limpiar-mapa-sidebar"
+          title="Limpiar Mapa"
+          onClick={() => {
+            if (onClearAllRoutes) onClearAllRoutes();
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            padding: '8px 6px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            background: 'rgba(239, 68, 68, 0.12)',
+            color: '#fca5a5',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: '12px',
+            fontWeight: 600,
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <span>🧹 Limpiar</span>
         </button>
       </div>
 
@@ -268,7 +286,7 @@ export function RouteSelector({
                     {/* Botón Favorito Estrella */}
                     <button
                       type="button"
-                      onClick={(e) => toggleFavorite(route.id, e)}
+                      onClick={(e) => handleToggleFavorite(route.id, e)}
                       style={{
                         background: 'transparent',
                         border: 'none',

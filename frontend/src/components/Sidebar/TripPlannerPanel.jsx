@@ -6,6 +6,8 @@ import { apiClient } from '../../api/client.js';
 export function TripPlannerPanel({
   personalPoints,
   userLocation,
+  currentUser = null,
+  onRequestAuthPrompt,
   onPickPointOnMap,
   pickingTarget,
   onSelectTrip,
@@ -17,20 +19,72 @@ export function TripPlannerPanel({
   const [planResult, setPlanResult] = useState(null);
   const [activeResultTab, setActiveResultTab] = useState('all'); // 'all' | 'direct' | 'transfer'
 
-  // Resolver coordenadas según la selección actual
+  // Resolver coordenadas según la selección actual (cero valores predeterminados)
   const getCoordinates = (type) => {
-    if (type === 'casa') return personalPoints.casa;
-    if (type === 'escuela') return personalPoints.escuela;
-    if (type === 'trabajo') return personalPoints.trabajo;
-    if (type === 'map') return userLocation || personalPoints.casa;
-    return personalPoints.casa;
+    if (!personalPoints && type !== 'map') return null;
+    if (type === 'casa') return personalPoints?.home || personalPoints?.casa || null;
+    if (type === 'escuela') return personalPoints?.school || personalPoints?.escuela || null;
+    if (type === 'trabajo') return personalPoints?.work || personalPoints?.trabajo || null;
+    if (type === 'map') return userLocation || null;
+    return null;
+  };
+
+  const handleSelectPointType = (type, isOrigin) => {
+    if (type === 'casa' || type === 'escuela' || type === 'trabajo') {
+      const point = getCoordinates(type);
+      if (!currentUser && !point) {
+        if (onRequestAuthPrompt) {
+          if (type === 'casa') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Casa');
+          if (type === 'escuela') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Escuela');
+          if (type === 'trabajo') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Trabajo');
+        }
+        return;
+      }
+    }
+    if (isOrigin) {
+      setOriginType(type);
+    } else {
+      setDestType(type);
+    }
+  };
+
+  const handlePickPoint = (type) => {
+    if (!currentUser && (type === 'casa' || type === 'escuela' || type === 'trabajo')) {
+      if (onRequestAuthPrompt) {
+        if (type === 'casa') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Casa');
+        if (type === 'escuela') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Escuela');
+        if (type === 'trabajo') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Trabajo');
+      }
+      return;
+    }
+    if (onPickPointOnMap) {
+      onPickPointOnMap(type);
+    }
   };
 
   const handlePlanTrip = async () => {
     const orig = getCoordinates(originType);
     const dest = getCoordinates(destType);
 
-    if (!orig || !dest) return;
+    if (!orig || !dest || !Number.isFinite(orig.lat) || !Number.isFinite(dest.lat)) {
+      if (!orig && (originType === 'casa' || originType === 'escuela' || originType === 'trabajo')) {
+        if (!currentUser && onRequestAuthPrompt) {
+          if (originType === 'casa') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Casa');
+          if (originType === 'escuela') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Escuela');
+          if (originType === 'trabajo') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Trabajo');
+          return;
+        }
+      }
+      if (!dest && (destType === 'casa' || destType === 'escuela' || destType === 'trabajo')) {
+        if (!currentUser && onRequestAuthPrompt) {
+          if (destType === 'casa') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Casa');
+          if (destType === 'escuela') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Escuela');
+          if (destType === 'trabajo') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Trabajo');
+          return;
+        }
+      }
+      return;
+    }
 
     setLoading(true);
     try {
@@ -57,9 +111,13 @@ export function TripPlannerPanel({
   };
 
   useEffect(() => {
-    handlePlanTrip();
+    const orig = getCoordinates(originType);
+    const dest = getCoordinates(destType);
+    if (orig && dest) {
+      handlePlanTrip();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [originType, destType, personalPoints.casa, personalPoints.escuela, personalPoints.trabajo]);
+  }, [originType, destType, personalPoints?.home, personalPoints?.casa, personalPoints?.school, personalPoints?.escuela, personalPoints?.work, personalPoints?.trabajo, userLocation]);
 
   const originCoord = getCoordinates(originType);
   const destCoord = getCoordinates(destType);
@@ -101,7 +159,7 @@ export function TripPlannerPanel({
             <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>SALIDA:</span>
             <button
               type="button"
-              onClick={() => onPickPointOnMap(originType)}
+              onClick={() => handlePickPoint(originType)}
               style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px' }}
             >
               Fijar en mapa
@@ -117,7 +175,7 @@ export function TripPlannerPanel({
               <button
                 key={btn.id}
                 type="button"
-                onClick={() => setOriginType(btn.id)}
+                onClick={() => handleSelectPointType(btn.id, true)}
                 style={{
                   padding: '6px 2px',
                   background: originType === btn.id ? 'rgba(56, 189, 248, 0.2)' : 'rgba(30, 41, 59, 0.6)',
@@ -146,7 +204,7 @@ export function TripPlannerPanel({
             <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>LLEGADA:</span>
             <button
               type="button"
-              onClick={() => onPickPointOnMap(destType)}
+              onClick={() => handlePickPoint(destType)}
               style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px' }}
             >
               Fijar en mapa
@@ -162,7 +220,7 @@ export function TripPlannerPanel({
               <button
                 key={btn.id}
                 type="button"
-                onClick={() => setDestType(btn.id)}
+                onClick={() => handleSelectPointType(btn.id, false)}
                 style={{
                   padding: '6px 2px',
                   background: destType === btn.id ? 'rgba(16, 185, 129, 0.2)' : 'rgba(30, 41, 59, 0.6)',
