@@ -21,7 +21,6 @@ import {
   LogIn
 } from 'lucide-react';
 import { RouteSelector } from './components/Sidebar/RouteSelector.jsx';
-import { ScheduleInfo } from './components/Sidebar/ScheduleInfo.jsx';
 import { TripPlannerPanel } from './components/Sidebar/TripPlannerPanel.jsx';
 import { SupportPanel } from './components/Sidebar/SupportPanel.jsx';
 import { AdminPanel } from './components/Sidebar/AdminPanel.jsx';
@@ -64,7 +63,7 @@ export default function App() {
   // 1. Estado de Sesión y Usuario Activo
   const [currentUser, setCurrentUser] = useState(() => loadCurrentSessionUser());
   const [currentRole, setCurrentRole] = useState(() => currentUser?.role || 'USER'); // 'USER' | 'SUPPORT' | 'ADMIN'
-  const [userTab, setUserTab] = useState('routes'); // 'routes' | 'planner' | 'schedule'
+  const [userTab, setUserTab] = useState('routes'); // 'routes' | 'planner'
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // 2. Puntos Personales (Cero Casa, Escuela o Trabajo predeterminados)
@@ -219,8 +218,8 @@ export default function App() {
   const handleSelectRoute = (id) => {
     selectRoute(id);
     setSelectedTrip(null);
-    if (id && currentRole === 'USER') {
-      setUserTab('schedule');
+    if (id && !visibleRouteIds.includes(id)) {
+      toggleRouteVisibility(id);
     }
   };
 
@@ -608,12 +607,12 @@ export default function App() {
               </div>
             </div>
 
-            {/* Sub-Pestañas para el Perfil USUARIO */}
+            {/* Sub-Pestañas para el Perfil USUARIO: 2 Pestañas Limpias ("Rutas" y "¿Cómo llego?") */}
             {currentRole === 'USER' && (
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
                   padding: '8px 12px 0 12px',
                   gap: '4px',
                   borderBottom: '1px solid var(--border-subtle)'
@@ -621,6 +620,7 @@ export default function App() {
               >
                 <button
                   type="button"
+                  id="tab-btn-rutas"
                   onClick={() => setUserTab('routes')}
                   style={{
                     padding: '8px 4px',
@@ -643,6 +643,7 @@ export default function App() {
 
                 <button
                   type="button"
+                  id="tab-btn-planner"
                   onClick={() => setUserTab('planner')}
                   style={{
                     padding: '8px 4px',
@@ -660,29 +661,7 @@ export default function App() {
                   }}
                 >
                   <Compass size={13} color="#38bdf8" />
-                  <span>¿Qué Combi?</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setUserTab('schedule')}
-                  style={{
-                    padding: '8px 4px',
-                    background: userTab === 'schedule' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                    border: 'none',
-                    borderBottom: userTab === 'schedule' ? '2px solid #3b82f6' : '2px solid transparent',
-                    color: userTab === 'schedule' ? '#ffffff' : 'var(--text-muted)',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <Clock size={13} />
-                  <span>Horarios</span>
+                  <span>¿Cómo llego?</span>
                 </button>
               </div>
             )}
@@ -704,11 +683,25 @@ export default function App() {
                       onShowAllRoutes={showAllRoutes}
                       onShowFavoriteRoutes={() => showFavoriteRoutes(favoriteIds)}
                       onClearAllRoutes={clearAllRoutes}
+                      activeStop={activeStop}
+                      onSelectStop={selectStop}
+                      userLocation={userLocation}
+                      onSetUserLocation={setUserLocation}
+                      onClearUserLocation={clearUserLocation}
+                      directionFilter={directionFilter}
+                      onSetDirectionFilter={setDirectionFilter}
+                      onSelectTrip={(trip) => {
+                        setSelectedTrip(trip);
+                        selectRoute(null);
+                      }}
+                      selectedTrip={selectedTrip}
+                      onSwitchToPlanner={() => setUserTab('planner')}
                     />
                   )}
 
                   {userTab === 'planner' && (
                     <TripPlannerPanel
+                      routes={routes}
                       personalPoints={personalPoints}
                       userLocation={userLocation}
                       currentUser={currentUser}
@@ -726,21 +719,19 @@ export default function App() {
                       onSelectTrip={(trip) => {
                         setSelectedTrip(trip);
                         selectRoute(null);
+                        if (trip) {
+                          if (trip.routeId && !visibleRouteIds.includes(trip.routeId)) {
+                            setVisibleRouteIds((prev) => [...prev, trip.routeId]);
+                          }
+                          if (trip.firstLeg?.routeId && !visibleRouteIds.includes(trip.firstLeg.routeId)) {
+                            setVisibleRouteIds((prev) => [...prev, trip.firstLeg.routeId]);
+                          }
+                          if (trip.secondLeg?.routeId && !visibleRouteIds.includes(trip.secondLeg.routeId)) {
+                            setVisibleRouteIds((prev) => [...prev, trip.secondLeg.routeId]);
+                          }
+                        }
                       }}
                       selectedTrip={selectedTrip}
-                    />
-                  )}
-
-                  {userTab === 'schedule' && (
-                    <ScheduleInfo
-                      route={selectedRoute}
-                      activeStop={activeStop}
-                      nearestStops={nearestStops}
-                      loadingNearest={loadingNearest}
-                      userLocation={userLocation}
-                      onSelectStop={selectStop}
-                      onSimulateLocation={simulateTuxtlaLocation}
-                      onClearLocation={clearUserLocation}
                     />
                   )}
                 </>
@@ -795,6 +786,12 @@ export default function App() {
             onPickCoordinate={handlePickCoordinate}
             onCancelPicking={() => setPickingTarget(null)}
             onMapClick={setUserLocation}
+            onClearUserLocation={clearUserLocation}
+            onStartTripFromLocation={(coords) => {
+              setUserLocation(coords);
+              setUserTab('planner');
+              setSidebarOpen(true);
+            }}
             onSelectRoute={handleSelectRoute}
             onSelectStop={selectStop}
           />

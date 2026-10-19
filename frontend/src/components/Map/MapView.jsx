@@ -21,29 +21,31 @@ const TUXTLA_MAX_BOUNDS = [
   [16.8350, -93.0200]  // Noreste
 ];
 
-// Catálogo de estilos de mapa base
+// Catálogo de estilos de mapa base: Google Maps por defecto, Satélite e Híbrido y Urbano Claro
 const BASEMAP_PROVIDERS = {
+  googleRoad: {
+    id: 'googleRoad',
+    name: 'Google Maps',
+    icon: '🗺️',
+    url: 'https://mt1.google.com/vt/lyrs=m&hl=es&x={x}&y={y}&z={z}',
+    attribution: '&copy; Google Maps',
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    maxZoom: 20
+  },
+  googleHybrid: {
+    id: 'googleHybrid',
+    name: 'Satélite / Híbrido',
+    icon: '🛰️',
+    url: 'https://mt1.google.com/vt/lyrs=y&hl=es&x={x}&y={y}&z={z}',
+    attribution: '&copy; Google Maps',
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    maxZoom: 20
+  },
   osm: {
     id: 'osm',
-    name: 'Estándar',
-    icon: '🗺️',
+    name: 'Urbano Claro',
+    icon: '🏙️',
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenStreetMap contributors',
-    maxZoom: 19
-  },
-  esri: {
-    id: 'esri',
-    name: 'Vial',
-    icon: '🛣️',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri',
-    maxZoom: 19
-  },
-  hot: {
-    id: 'hot',
-    name: 'Claro',
-    icon: '🌍',
-    url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
     attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19
   }
@@ -189,15 +191,28 @@ export function MapView({
   onPickCoordinate,
   onCancelPicking,
   onMapClick,
+  onClearUserLocation,
+  onStartTripFromLocation,
   onSelectRoute,
   onSelectStop
 }) {
-  // Capa base seleccionada (por defecto Estándar)
-  const [activeBasemapKey, setActiveBasemapKey] = useState('osm');
+  // Capa base seleccionada (por defecto Google Maps con calles y etiquetas)
+  const [activeBasemapKey, setActiveBasemapKey] = useState('googleRoad');
   const [showLayerMenu, setShowLayerMenu] = useState(false);
   const [showVisibilityMenu, setShowVisibilityMenu] = useState(false);
 
-  const currentBasemap = BASEMAP_PROVIDERS[activeBasemapKey] || BASEMAP_PROVIDERS.osm;
+  // Cerrar radar con la tecla Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (onClearUserLocation) onClearUserLocation();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClearUserLocation]);
+
+  const currentBasemap = BASEMAP_PROVIDERS[activeBasemapKey] || BASEMAP_PROVIDERS.googleRoad;
 
   // Paradas de las rutas
   const allStops = useMemo(() => {
@@ -678,6 +693,7 @@ export function MapView({
           key={currentBasemap.id}
           url={currentBasemap.url}
           attribution={currentBasemap.attribution}
+          subdomains={currentBasemap.subdomains || ['a', 'b', 'c']}
           maxZoom={currentBasemap.maxZoom}
         />
 
@@ -704,7 +720,7 @@ export function MapView({
           onSelectRoute={onSelectRoute}
         />
 
-        {/* Marcadores de paradas filtradas según visibilidad */}
+        {/* Marcadores de paradas filtradas según visibilidad y radar inteligente con HUD flotante */}
         <StopMarkers
           stops={allStops}
           routes={routes}
@@ -712,8 +728,12 @@ export function MapView({
           selectedRouteId={selectedRouteId}
           activeStop={activeStop}
           userLocation={userLocation}
-          searchRadius={1500}
+          searchRadius={600}
           onSelectStop={onSelectStop}
+          onSelectRoute={onSelectRoute}
+          onToggleRouteVisibility={onToggleRouteVisibility}
+          onClearUserLocation={onClearUserLocation}
+          onStartTripFromLocation={onStartTripFromLocation}
         />
 
         {/* Marcadores de puntos personales: Casa, Escuela, Trabajo */}

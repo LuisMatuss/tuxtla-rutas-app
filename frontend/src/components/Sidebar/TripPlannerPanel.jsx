@@ -1,9 +1,23 @@
-// Componente de Panel Lateral: Planificador Inteligente de Viajes "¿Qué combi tomo?" (Zero-Slop, Apple Maps style)
-import React, { useState, useEffect } from 'react';
-import { Navigation, Clock, Footprints, ArrowRight, Compass, AlertCircle } from 'lucide-react';
-import { apiClient } from '../../api/client.js';
+// Componente de Panel Lateral: Planificador Inteligente de Viajes "¿Cómo llego?"
+// Incluye autocompletado inteligente de direcciones y paradas en Tuxtla Gutiérrez para Salida y Llegada,
+// botones rápidos de acceso a puntos frecuentes y del círculo radar, y cálculo multimodal.
+
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Navigation,
+  Clock,
+  Footprints,
+  ArrowRight,
+  Compass,
+  AlertCircle,
+  Search,
+  MapPin,
+  X
+} from 'lucide-react';
+import { apiClient, searchTuxtlaAddresses } from '../../api/client.js';
 
 export function TripPlannerPanel({
+  routes = [],
   personalPoints,
   userLocation,
   currentUser = null,
@@ -13,25 +27,107 @@ export function TripPlannerPanel({
   onSelectTrip,
   selectedTrip
 }) {
-  const [originType, setOriginType] = useState('casa'); // 'casa' | 'escuela' | 'trabajo' | 'map'
-  const [destType, setDestType] = useState('escuela');
+  const [originType, setOriginType] = useState('map'); // 'map' | 'casa' | 'escuela' | 'trabajo' | 'custom'
+  const [destType, setDestType] = useState('escuela'); // 'escuela' | 'casa' | 'trabajo' | 'map' | 'custom'
+
+  // Direcciones personalizadas elegidas desde el autocompletado
+  const [customOrigin, setCustomOrigin] = useState(null);
+  const [customDest, setCustomDest] = useState(null);
+
+  // Estados de búsqueda para Origen y Destino
+  const [originQuery, setOriginQuery] = useState('');
+  const [originSuggestions, setOriginSuggestions] = useState([]);
+  const [showOriginDropdown, setShowOriginDropdown] = useState(false);
+
+  const [destQuery, setDestQuery] = useState('');
+  const [destSuggestions, setDestSuggestions] = useState([]);
+  const [showDestDropdown, setShowDestDropdown] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [planResult, setPlanResult] = useState(null);
   const [activeResultTab, setActiveResultTab] = useState('all'); // 'all' | 'direct' | 'transfer'
 
-  // Resolver coordenadas según la selección actual (cero valores predeterminados)
-  const getCoordinates = (type) => {
-    if (!personalPoints && type !== 'map') return null;
+  const originContainerRef = useRef(null);
+  const destContainerRef = useRef(null);
+
+  // Autocompletado de dirección de Inicio (Salida)
+  useEffect(() => {
+    if (!originQuery.trim() || originQuery.trim().length < 2) {
+      setOriginSuggestions([]);
+      return;
+    }
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await searchTuxtlaAddresses(originQuery);
+        if (isMounted) {
+          setOriginSuggestions(res);
+          setShowOriginDropdown(res.length > 0);
+        }
+      } catch (err) {
+        if (isMounted) setOriginSuggestions([]);
+      }
+    }, 280);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [originQuery]);
+
+  // Autocompletado de dirección de Destino (Llegada)
+  useEffect(() => {
+    if (!destQuery.trim() || destQuery.trim().length < 2) {
+      setDestSuggestions([]);
+      return;
+    }
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await searchTuxtlaAddresses(destQuery);
+        if (isMounted) {
+          setDestSuggestions(res);
+          setShowDestDropdown(res.length > 0);
+        }
+      } catch (err) {
+        if (isMounted) setDestSuggestions([]);
+      }
+    }, 280);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [destQuery]);
+
+  // Cerrar desplegables al hacer clic fuera
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (originContainerRef.current && !originContainerRef.current.contains(e.target)) {
+        setShowOriginDropdown(false);
+      }
+      if (destContainerRef.current && !destContainerRef.current.contains(e.target)) {
+        setShowDestDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  // Resolver coordenadas
+  const getCoordinates = (type, isOrigin) => {
+    if (type === 'custom') {
+      return isOrigin ? customOrigin : customDest;
+    }
+    if (type === 'map') return userLocation || null;
+    if (!personalPoints) return null;
     if (type === 'casa') return personalPoints?.home || personalPoints?.casa || null;
     if (type === 'escuela') return personalPoints?.school || personalPoints?.escuela || null;
     if (type === 'trabajo') return personalPoints?.work || personalPoints?.trabajo || null;
-    if (type === 'map') return userLocation || null;
     return null;
   };
 
   const handleSelectPointType = (type, isOrigin) => {
     if (type === 'casa' || type === 'escuela' || type === 'trabajo') {
-      const point = getCoordinates(type);
+      const point = getCoordinates(type, isOrigin);
       if (!currentUser && !point) {
         if (onRequestAuthPrompt) {
           if (type === 'casa') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Casa');
@@ -43,8 +139,10 @@ export function TripPlannerPanel({
     }
     if (isOrigin) {
       setOriginType(type);
+      if (type !== 'custom') setOriginQuery('');
     } else {
       setDestType(type);
+      if (type !== 'custom') setDestQuery('');
     }
   };
 
@@ -63,26 +161,10 @@ export function TripPlannerPanel({
   };
 
   const handlePlanTrip = async () => {
-    const orig = getCoordinates(originType);
-    const dest = getCoordinates(destType);
+    const orig = getCoordinates(originType, true);
+    const dest = getCoordinates(destType, false);
 
     if (!orig || !dest || !Number.isFinite(orig.lat) || !Number.isFinite(dest.lat)) {
-      if (!orig && (originType === 'casa' || originType === 'escuela' || originType === 'trabajo')) {
-        if (!currentUser && onRequestAuthPrompt) {
-          if (originType === 'casa') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Casa');
-          if (originType === 'escuela') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Escuela');
-          if (originType === 'trabajo') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Trabajo');
-          return;
-        }
-      }
-      if (!dest && (destType === 'casa' || destType === 'escuela' || destType === 'trabajo')) {
-        if (!currentUser && onRequestAuthPrompt) {
-          if (destType === 'casa') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Casa');
-          if (destType === 'escuela') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Escuela');
-          if (destType === 'trabajo') onRequestAuthPrompt('Inicia sesión para poder configurar la ubicación de tu Trabajo');
-          return;
-        }
-      }
       return;
     }
 
@@ -97,10 +179,15 @@ export function TripPlannerPanel({
 
       if (res.data) {
         setPlanResult(res.data);
-        if (res.data.directOptions && res.data.directOptions.length > 0) {
-          onSelectTrip(res.data.directOptions[0]);
-        } else if (res.data.transferOptions && res.data.transferOptions.length > 0) {
-          onSelectTrip(res.data.transferOptions[0]);
+        const firstOption =
+          (res.data.directOptions && res.data.directOptions.length > 0)
+            ? res.data.directOptions[0]
+            : (res.data.transferOptions && res.data.transferOptions.length > 0)
+            ? res.data.transferOptions[0]
+            : null;
+
+        if (firstOption && onSelectTrip) {
+          onSelectTrip(firstOption);
         }
       }
     } catch (err) {
@@ -110,74 +197,191 @@ export function TripPlannerPanel({
     }
   };
 
+  // Re-planificar automáticamente cuando ambos puntos tienen coordenadas válidas
   useEffect(() => {
-    const orig = getCoordinates(originType);
-    const dest = getCoordinates(destType);
-    if (orig && dest) {
+    const orig = getCoordinates(originType, true);
+    const dest = getCoordinates(destType, false);
+    if (orig && dest && Number.isFinite(orig.lat) && Number.isFinite(dest.lat)) {
       handlePlanTrip();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [originType, destType, personalPoints?.home, personalPoints?.casa, personalPoints?.school, personalPoints?.escuela, personalPoints?.work, personalPoints?.trabajo, userLocation]);
+  }, [originType, destType, customOrigin, customDest, userLocation, personalPoints?.home, personalPoints?.casa, personalPoints?.school, personalPoints?.escuela, personalPoints?.work, personalPoints?.trabajo]);
 
-  const originCoord = getCoordinates(originType);
-  const destCoord = getCoordinates(destType);
+  const originCoord = getCoordinates(originType, true);
+  const destCoord = getCoordinates(destType, false);
 
   const directOptions = planResult?.directOptions || [];
   const transferOptions = planResult?.transferOptions || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {/* Configuración de Trayecto */}
+      {/* 1. Panel de Configuración de Trayecto con Autocompletado */}
       <div
         style={{
-          background: 'rgba(15, 23, 42, 0.7)',
+          background: 'rgba(15, 23, 42, 0.75)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
           padding: '12px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '10px'
+          gap: '12px'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Compass size={15} color="#38bdf8" />
-            <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
-              Planificador de Rutas
+            <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
+              ¿Cómo llego?
             </h3>
           </div>
           {pickingTarget && (
             <span style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 600 }}>
-              📍 Clic en mapa...
+              📍 Toca el mapa para fijar...
             </span>
           )}
         </div>
 
-        {/* Origen */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {/* Campo de Salida / Origen con Autocompletado */}
+        <div ref={originContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>SALIDA:</span>
-            <button
-              type="button"
-              onClick={() => handlePickPoint(originType)}
-              style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px' }}
-            >
-              Fijar en mapa
-            </button>
+            <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>
+              🟢 DIRECCIÓN DE INICIO (SALIDA):
+            </span>
+            {originType !== 'map' && originType !== 'custom' && (
+              <button
+                type="button"
+                onClick={() => handlePickPoint(originType)}
+                style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+              >
+                Fijar en mapa
+              </button>
+            )}
           </div>
+
+          <div style={{ position: 'relative' }}>
+            <Search
+              size={14}
+              style={{
+                position: 'absolute',
+                left: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#94a3b8'
+              }}
+            />
+            <input
+              type="text"
+              id="input-origin-address"
+              placeholder={originCoord ? (originCoord.label || 'Punto fijado en mapa') : 'Escribe calle, colonia o parada de salida...'}
+              value={originQuery}
+              onChange={(e) => {
+                setOriginQuery(e.target.value);
+                setOriginType('custom');
+              }}
+              onFocus={() => {
+                if (originSuggestions.length > 0) setShowOriginDropdown(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '7px 10px 7px 32px',
+                background: 'rgba(15, 23, 42, 0.9)',
+                border: originType === 'custom' && customOrigin ? '1px solid #10b981' : '1px solid var(--border-subtle)',
+                borderRadius: '6px',
+                color: '#f8fafc',
+                fontSize: '12px',
+                outline: 'none',
+                fontFamily: 'inherit'
+              }}
+            />
+            {originQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOriginQuery('');
+                  setOriginSuggestions([]);
+                  setShowOriginDropdown(false);
+                }}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={13} />
+              </button>
+            )}
+
+            {/* Desplegable de Origen */}
+            {showOriginDropdown && originSuggestions.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '105%',
+                  left: 0,
+                  right: 0,
+                  zIndex: 1300,
+                  background: 'rgba(15, 23, 42, 0.98)',
+                  backdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  borderRadius: '8px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.65)',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: '4px'
+                }}
+              >
+                {originSuggestions.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setCustomOrigin({ lat: item.lat, lng: item.lng, label: item.displayName });
+                      setOriginType('custom');
+                      setOriginQuery(item.displayName);
+                      setShowOriginDropdown(false);
+                    }}
+                    style={{
+                      padding: '6px 8px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      color: '#f8fafc',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <div style={{ fontWeight: 700 }}>{item.displayName}</div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>{item.secondaryText}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Chips Rápidos de Salida */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
             {[
+              { id: 'map', icon: '📍', label: 'Círculo' },
               { id: 'casa', icon: '🏠', label: 'Casa' },
               { id: 'escuela', icon: '🎓', label: 'Escuela' },
-              { id: 'trabajo', icon: '💼', label: 'Trabajo' },
-              { id: 'map', icon: '📍', label: 'Mapa' }
+              { id: 'trabajo', icon: '💼', label: 'Trabajo' }
             ].map((btn) => (
               <button
                 key={btn.id}
                 type="button"
+                id={`btn-origin-${btn.id}`}
                 onClick={() => handleSelectPointType(btn.id, true)}
                 style={{
-                  padding: '6px 2px',
+                  padding: '5px 2px',
                   background: originType === btn.id ? 'rgba(56, 189, 248, 0.2)' : 'rgba(30, 41, 59, 0.6)',
                   border: originType === btn.id ? '1px solid #38bdf8' : '1px solid transparent',
                   borderRadius: '6px',
@@ -198,31 +402,147 @@ export function TripPlannerPanel({
           </div>
         </div>
 
-        {/* Destino */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {/* Campo de Llegada / Destino con Autocompletado */}
+        <div ref={destContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>LLEGADA:</span>
-            <button
-              type="button"
-              onClick={() => handlePickPoint(destType)}
-              style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px' }}
-            >
-              Fijar en mapa
-            </button>
+            <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700 }}>
+              🏁 DIRECCIÓN DE DESTINO (LLEGADA):
+            </span>
+            {destType !== 'map' && destType !== 'custom' && (
+              <button
+                type="button"
+                onClick={() => handlePickPoint(destType)}
+                style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+              >
+                Fijar en mapa
+              </button>
+            )}
           </div>
+
+          <div style={{ position: 'relative' }}>
+            <Search
+              size={14}
+              style={{
+                position: 'absolute',
+                left: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#94a3b8'
+              }}
+            />
+            <input
+              type="text"
+              id="input-dest-address"
+              placeholder={destCoord ? (destCoord.label || 'Punto fijado en mapa') : 'Escribe lugar, colonia o dirección de destino...'}
+              value={destQuery}
+              onChange={(e) => {
+                setDestQuery(e.target.value);
+                setDestType('custom');
+              }}
+              onFocus={() => {
+                if (destSuggestions.length > 0) setShowDestDropdown(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '7px 10px 7px 32px',
+                background: 'rgba(15, 23, 42, 0.9)',
+                border: destType === 'custom' && customDest ? '1px solid #10b981' : '1px solid var(--border-subtle)',
+                borderRadius: '6px',
+                color: '#f8fafc',
+                fontSize: '12px',
+                outline: 'none',
+                fontFamily: 'inherit'
+              }}
+            />
+            {destQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDestQuery('');
+                  setDestSuggestions([]);
+                  setShowDestDropdown(false);
+                }}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={13} />
+              </button>
+            )}
+
+            {/* Desplegable de Destino */}
+            {showDestDropdown && destSuggestions.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '105%',
+                  left: 0,
+                  right: 0,
+                  zIndex: 1300,
+                  background: 'rgba(15, 23, 42, 0.98)',
+                  backdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  borderRadius: '8px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.65)',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: '4px'
+                }}
+              >
+                {destSuggestions.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setCustomDest({ lat: item.lat, lng: item.lng, label: item.displayName });
+                      setDestType('custom');
+                      setDestQuery(item.displayName);
+                      setShowDestDropdown(false);
+                    }}
+                    style={{
+                      padding: '6px 8px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      color: '#f8fafc',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <div style={{ fontWeight: 700 }}>{item.displayName}</div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>{item.secondaryText}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Chips Rápidos de Destino */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
             {[
               { id: 'escuela', icon: '🎓', label: 'Escuela' },
               { id: 'casa', icon: '🏠', label: 'Casa' },
               { id: 'trabajo', icon: '💼', label: 'Trabajo' },
-              { id: 'map', icon: '📍', label: 'Mapa' }
+              { id: 'map', icon: '📍', label: 'Círculo' }
             ].map((btn) => (
               <button
                 key={btn.id}
                 type="button"
+                id={`btn-dest-${btn.id}`}
                 onClick={() => handleSelectPointType(btn.id, false)}
                 style={{
-                  padding: '6px 2px',
+                  padding: '5px 2px',
                   background: destType === btn.id ? 'rgba(16, 185, 129, 0.2)' : 'rgba(30, 41, 59, 0.6)',
                   border: destType === btn.id ? '1px solid #10b981' : '1px solid transparent',
                   borderRadius: '6px',
@@ -243,20 +563,23 @@ export function TripPlannerPanel({
           </div>
         </div>
 
-        {/* Botón de Cálculo */}
+        {/* Botón de Cálculo Manual */}
         <button
           type="button"
+          id="btn-calculate-trip"
           onClick={handlePlanTrip}
-          disabled={loading}
+          disabled={loading || !originCoord || !destCoord}
           style={{
             padding: '8px 12px',
-            background: 'linear-gradient(135deg, #059669 0%, #0284c7 100%)',
+            background: (!originCoord || !destCoord)
+              ? 'rgba(255, 255, 255, 0.08)'
+              : 'linear-gradient(135deg, #059669 0%, #0284c7 100%)',
             border: 'none',
             borderRadius: '6px',
-            color: '#ffffff',
+            color: (!originCoord || !destCoord) ? '#64748b' : '#ffffff',
             fontSize: '12px',
             fontWeight: 700,
-            cursor: 'pointer',
+            cursor: (!originCoord || !destCoord) ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -264,14 +587,14 @@ export function TripPlannerPanel({
           }}
         >
           <Navigation size={14} />
-          <span>{loading ? 'Calculando...' : 'Calcular Trayecto'}</span>
+          <span>{loading ? 'Calculando combis...' : 'Calcular Trayecto'}</span>
         </button>
       </div>
 
       {/* Resultados de Planificación */}
       {planResult && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Pestañas de Filtro (Chips) */}
+          {/* Pestañas de Filtro */}
           <div style={{ display: 'flex', gap: '4px' }}>
             {[
               { id: 'all', label: `Todas (${directOptions.length + transferOptions.length})` },
@@ -298,7 +621,7 @@ export function TripPlannerPanel({
             ))}
           </div>
 
-          {/* Opciones Directas: 1 Sola Línea con Chips Estilo Apple Maps */}
+          {/* Opciones Directas */}
           {(activeResultTab === 'all' || activeResultTab === 'direct') && directOptions.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {directOptions.map((opt) => {
@@ -354,7 +677,7 @@ export function TripPlannerPanel({
             </div>
           )}
 
-          {/* Opciones con Trasbordo: 1 Sola Línea con Chips Estilo Apple Maps */}
+          {/* Opciones con Trasbordo */}
           {(activeResultTab === 'all' || activeResultTab === 'transfer') && transferOptions.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {transferOptions.map((opt) => {
