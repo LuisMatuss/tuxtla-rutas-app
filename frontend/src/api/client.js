@@ -56371,6 +56371,107 @@ export const apiClient = {
     }
   },
 
+  /**
+   * Consulta el estado en vivo y métricas del Bot Real de Telegram (Admin / Soporte)
+   */
+  async fetchTelegramStatus() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/automation/telegram/status`, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(4000)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Error al obtener estado de Telegram`);
+      }
+
+      const json = await response.json();
+      const payload = json.data || json;
+      return {
+        success: true,
+        connected: Boolean(payload.connected),
+        polling: Boolean(payload.polling),
+        botName: payload.botName || null,
+        botUsername: payload.botUsername || null,
+        totalProcessed: Number(payload.totalProcessed) || 0,
+        lastError: payload.lastError || null,
+        logs: Array.isArray(payload.logs) ? payload.logs : []
+      };
+    } catch (err) {
+      return {
+        success: false,
+        connected: false,
+        polling: false,
+        botName: null,
+        botUsername: null,
+        totalProcessed: 0,
+        lastError: null,
+        logs: []
+      };
+    }
+  },
+
+  /**
+   * Conecta o actualiza en caliente el token del Bot de Telegram (Admin)
+   * @param {string} [token]
+   */
+  async connectTelegramBot(token) {
+    const bodyPayload = token && token.trim() ? { token: token.trim() } : {};
+    const response = await fetch(`${API_BASE_URL}/automation/telegram/connect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(bodyPayload),
+      signal: AbortSignal.timeout(12000)
+    });
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || json.success === false) {
+      throw new Error(json?.error?.message || 'No se pudo conectar el Bot de Telegram.');
+    }
+
+    const payload = json.data || json;
+    return {
+      success: true,
+      connected: Boolean(payload.connected),
+      botName: payload.botName || null,
+      botUsername: payload.botUsername || null,
+      totalProcessed: Number(payload.totalProcessed) || 0,
+      logs: Array.isArray(payload.logs) ? payload.logs : []
+    };
+  },
+
+  /**
+   * Pausa el bucle de Long Polling del Bot de Telegram (Admin)
+   */
+  async disconnectTelegramBot() {
+    const response = await fetch(`${API_BASE_URL}/automation/telegram/disconnect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || json.success === false) {
+      throw new Error(json?.error?.message || 'No se pudo pausar el Bot de Telegram.');
+    }
+
+    const payload = json.data || json;
+    return {
+      success: true,
+      connected: Boolean(payload.connected),
+      botName: payload.botName || null,
+      botUsername: payload.botUsername || null,
+      totalProcessed: Number(payload.totalProcessed) || 0,
+      logs: Array.isArray(payload.logs) ? payload.logs : []
+    };
+  },
+
   // Métodos de compatibilidad con código anterior
   async getRoutes() {
     return this.fetchRoutes();

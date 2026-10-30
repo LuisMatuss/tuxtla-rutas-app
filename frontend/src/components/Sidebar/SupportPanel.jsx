@@ -1,7 +1,18 @@
 // Componente de Consola: Panel Operativo de Soporte Vial (Zero-Slop, Apple Maps style)
-import React, { useState } from 'react';
-import { CheckCircle, Trash2, PlusCircle, Radio, Send, Check } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { CheckCircle, Trash2, PlusCircle, Radio, Send, Check, MessageSquare } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
+
+function formatLogTime(isoString) {
+  if (!isoString) return '--:--';
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return '--:--';
+  return d.toLocaleTimeString('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+}
 
 export function SupportPanel({
   routes = [],
@@ -21,6 +32,32 @@ export function SupportPanel({
   const [newDelay, setNewDelay] = useState(15);
   const [submitting, setSubmitting] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState(null);
+
+  // Monitoreo compacto de Actividad del Bot de Telegram en Vivo
+  const [botActivity, setBotActivity] = useState({
+    connected: false,
+    botUsername: null,
+    totalProcessed: 0,
+    logs: []
+  });
+
+  const loadBotActivity = useCallback(async () => {
+    const res = await apiClient.fetchTelegramStatus();
+    if (res) {
+      setBotActivity({
+        connected: Boolean(res.connected),
+        botUsername: res.botUsername || null,
+        totalProcessed: Number(res.totalProcessed) || 0,
+        logs: Array.isArray(res.logs) ? res.logs : []
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBotActivity();
+    const timer = setInterval(loadBotActivity, 5000);
+    return () => clearInterval(timer);
+  }, [loadBotActivity]);
 
   const pendingReports = incidents.filter((i) => i.status === 'PENDING');
   const activeAlerts = incidents.filter((i) => i.status === 'ACTIVE_ALERT');
@@ -75,6 +112,8 @@ export function SupportPanel({
     }
   };
 
+  const recentLogs = botActivity.logs.slice(0, 8);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* Selector de Pestañas (Chips) */}
@@ -87,7 +126,7 @@ export function SupportPanel({
             background: activeTab === 'inbox' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(30, 41, 59, 0.5)',
             border: activeTab === 'inbox' ? '1px solid #38bdf8' : '1px solid var(--border-subtle)',
             borderRadius: '6px',
-            color: activeTab === 'inbox' ? '#38bdf8' : '#94a3b8',
+            color: activeTab === 'inbox' ? '#38bdf8' : '#cbd5e1',
             fontSize: '12px',
             fontWeight: 700,
             cursor: 'pointer',
@@ -109,7 +148,7 @@ export function SupportPanel({
             background: activeTab === 'publisher' ? 'rgba(217, 119, 6, 0.2)' : 'rgba(30, 41, 59, 0.5)',
             border: activeTab === 'publisher' ? '1px solid #d97706' : '1px solid var(--border-subtle)',
             borderRadius: '6px',
-            color: activeTab === 'publisher' ? '#fbbf24' : '#94a3b8',
+            color: activeTab === 'publisher' ? '#fcd34d' : '#cbd5e1',
             fontSize: '12px',
             fontWeight: 700,
             cursor: 'pointer',
@@ -131,7 +170,7 @@ export function SupportPanel({
             <span style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8' }}>
               POR VALIDAR ({pendingReports.length})
             </span>
-            <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
+            <span style={{ fontSize: '12px', color: '#34d399', fontWeight: 600 }}>
               {activeAlerts.length} activas
             </span>
           </div>
@@ -162,11 +201,11 @@ export function SupportPanel({
                     <strong style={{ fontSize: '12px', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {report.title}
                     </strong>
-                    <span style={{ fontSize: '12px', color: '#fbbf24', background: 'rgba(245, 158, 11, 0.2)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                    <span style={{ fontSize: '12px', color: '#fcd34d', background: 'rgba(245, 158, 11, 0.2)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
                       +{report.delayMinutes}m
                     </span>
                   </div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                  <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
                     {report.routeName || 'Ruta'} &bull; {report.locationName || 'Tuxtla'}
                   </div>
                 </div>
@@ -180,7 +219,7 @@ export function SupportPanel({
                       background: 'rgba(16, 185, 129, 0.2)',
                       border: '1px solid #10b981',
                       borderRadius: '4px',
-                      color: '#34d399',
+                      color: '#6ee7b7',
                       fontSize: '12px',
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -196,12 +235,13 @@ export function SupportPanel({
                   <button
                     type="button"
                     onClick={() => handleResolve(report.id)}
+                    title="Descartar reporte"
                     style={{
                       padding: '4px 6px',
                       background: 'rgba(239, 68, 68, 0.15)',
                       border: '1px solid rgba(239, 68, 68, 0.3)',
                       borderRadius: '4px',
-                      color: '#f87171',
+                      color: '#fca5a5',
                       fontSize: '12px',
                       cursor: 'pointer'
                     }}
@@ -216,7 +256,7 @@ export function SupportPanel({
           {/* Alertas Activas en Mapa */}
           {activeAlerts.length > 0 && (
             <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#fbbf24' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#fcd34d' }}>
                 ALERTAS ACTIVAS ({activeAlerts.length})
               </span>
 
@@ -239,7 +279,7 @@ export function SupportPanel({
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {alert.title}
                     </span>
-                    <span style={{ fontSize: '12px', color: '#fbbf24' }}>+{alert.delayMinutes}m</span>
+                    <span style={{ fontSize: '12px', color: '#fcd34d', fontVariantNumeric: 'tabular-nums' }}>+{alert.delayMinutes}m</span>
                   </div>
 
                   <button
@@ -250,7 +290,7 @@ export function SupportPanel({
                       background: 'rgba(255, 255, 255, 0.08)',
                       border: '1px solid var(--border-subtle)',
                       borderRadius: '4px',
-                      color: '#94a3b8',
+                      color: '#cbd5e1',
                       fontSize: '12px',
                       cursor: 'pointer',
                       flexShrink: 0
@@ -275,8 +315,9 @@ export function SupportPanel({
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>TIPO:</label>
+            <label htmlFor="support-alert-type" style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>TIPO:</label>
             <select
+              id="support-alert-type"
               value={newType}
               onChange={(e) => setNewType(e.target.value)}
               style={{
@@ -298,8 +339,9 @@ export function SupportPanel({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>RUTA:</label>
+            <label htmlFor="support-alert-route" style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>RUTA:</label>
             <select
+              id="support-alert-route"
               value={newRouteId}
               onChange={(e) => setNewRouteId(e.target.value)}
               style={{
@@ -321,8 +363,9 @@ export function SupportPanel({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>RETRASO:</label>
+            <label htmlFor="support-alert-delay" style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>RETRASO:</label>
             <select
+              id="support-alert-delay"
               value={newDelay}
               onChange={(e) => setNewDelay(e.target.value)}
               style={{
@@ -343,8 +386,9 @@ export function SupportPanel({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>TÍTULO:</label>
+            <label htmlFor="support-alert-title" style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>TÍTULO:</label>
             <input
+              id="support-alert-title"
               type="text"
               placeholder="Ej. Reducción de carril en Libramiento Sur"
               value={newTitle}
@@ -372,7 +416,7 @@ export function SupportPanel({
               justifyContent: 'space-between'
             }}
           >
-            <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+            <span style={{ fontSize: '12px', color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
               {pickedCoordinate
                 ? `📍 ${pickedCoordinate.lat.toFixed(4)}, ${pickedCoordinate.lng.toFixed(4)}`
                 : '📍 Centro de Tuxtla'}
@@ -381,7 +425,7 @@ export function SupportPanel({
               type="button"
               onClick={() => onPickCoordinateOnMap('incident')}
               style={{
-                background: pickingTarget === 'incident' ? '#d97706' : 'rgba(255, 255, 255, 0.08)',
+                background: pickingTarget === 'incident' ? '#b45309' : 'rgba(255, 255, 255, 0.08)',
                 border: 'none',
                 padding: '3px 8px',
                 borderRadius: '4px',
@@ -400,7 +444,7 @@ export function SupportPanel({
             disabled={submitting}
             style={{
               padding: '8px',
-              background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+              background: '#b45309',
               border: 'none',
               borderRadius: '6px',
               color: '#ffffff',
@@ -418,6 +462,95 @@ export function SupportPanel({
           </button>
         </form>
       )}
+
+      {/* 3. ACTIVIDAD DEL BOT DE TELEGRAM EN VIVO (Filas compactas de 1 línea) */}
+      <section
+        aria-label="Actividad del Bot de Telegram"
+        style={{
+          background: 'rgba(15, 23, 42, 0.72)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: '8px',
+          padding: '10px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          marginTop: '4px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <MessageSquare size={14} color="#38bdf8" />
+            <h2 style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
+              Actividad del Bot de Telegram
+            </h2>
+          </div>
+
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              color: botActivity.connected ? '#6ee7b7' : '#94a3b8',
+              fontVariantNumeric: 'tabular-nums'
+            }}
+          >
+            {botActivity.connected
+              ? `${botActivity.botUsername || 'En vivo'} • ${botActivity.totalProcessed}`
+              : 'En pausa'}
+          </span>
+        </div>
+
+        {recentLogs.length === 0 ? (
+          <div style={{ fontSize: '12px', color: '#94a3b8', paddingTop: '2px' }}>
+            Esperando consultas en vivo desde celulares...
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {recentLogs.map((log, index) => (
+              <div
+                key={log.id || index}
+                title={log.botReplyPreview ? `Respuesta: ${log.botReplyPreview}` : log.userText}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 0',
+                  borderTop: index === 0 ? '1px solid var(--border-subtle)' : '1px solid rgba(255, 255, 255, 0.05)',
+                  fontSize: '12px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden'
+                }}
+              >
+                <span style={{ color: '#94a3b8', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                  {formatLogTime(log.timestamp)}
+                </span>
+                <strong
+                  style={{
+                    color: '#7dd3fc',
+                    fontWeight: 700,
+                    maxWidth: '95px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    flexShrink: 0
+                  }}
+                >
+                  {String(log.userName || 'Usuario').split(' (')[0]}:
+                </strong>
+                <span
+                  style={{
+                    color: '#f8fafc',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    flex: 1,
+                    minWidth: 0
+                  }}
+                >
+                  {log.userText}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

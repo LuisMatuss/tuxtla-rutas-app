@@ -4,11 +4,16 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { createRouteRouter, createStopsRouter, createTripsRouter } from './web/routes/route.routes.js';
 import { createAutomationRouter } from './web/routes/automation.routes.js';
 import { createIncidentsRouter } from './web/routes/incident.routes.js';
 import { errorHandler } from './web/errorHandler.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
 
 const app = express();

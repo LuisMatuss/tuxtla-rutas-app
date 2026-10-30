@@ -29,12 +29,13 @@ export class AutomationController {
    * @param {import('../../../application/ports/in/CalculateNearestStopUseCase.interface.js').CalculateNearestStopUseCaseInterface} params.calculateNearestStopUseCase
    * @param {import('../../../application/ports/in/FindRoutesUseCase.interface.js').FindRoutesUseCaseInterface} params.findRoutesUseCase
    */
-  constructor({ calculateNearestStopUseCase, findRoutesUseCase }) {
+  constructor({ calculateNearestStopUseCase, findRoutesUseCase, telegramBotService = null }) {
     if (!calculateNearestStopUseCase || !findRoutesUseCase) {
       throw new Error('AutomationController requiere calculateNearestStopUseCase y findRoutesUseCase');
     }
     this.calculateNearestStopUseCase = calculateNearestStopUseCase;
     this.findRoutesUseCase = findRoutesUseCase;
+    this.telegramBotService = telegramBotService;
 
     // Almacén en memoria para telemetría GPS en tiempo real de unidades colectivas
     this.telemetryStore = new Map();
@@ -316,6 +317,94 @@ export class AutomationController {
   }
 
   /**
+   * GET /api/automation/telegram/status
+   * Retorna el estado real en vivo del bot de Telegram (@username, connected, totalProcessed, logs)
+   */
+  getTelegramStatus = async (req, res, next) => {
+    try {
+      const status = this.telegramBotService
+        ? this.telegramBotService.getStatus()
+        : {
+            connected: false,
+            polling: false,
+            botName: null,
+            botUsername: null,
+            totalProcessed: 0,
+            lastError: null,
+            logs: []
+          };
+
+      return res.status(200).json({
+        success: true,
+        ...status,
+        data: status
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/automation/telegram/connect
+   * Permite actualizar o reconectar el token de Telegram en caliente sin exponerlo en consola
+   */
+  connectTelegramBot = async (req, res) => {
+    try {
+      if (!this.telegramBotService) {
+        return res.status(503).json({
+          success: false,
+          error: { message: 'Servicio de Telegram no inicializado.' }
+        });
+      }
+
+      const rawToken = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+      const status = await this.telegramBotService.configureToken(rawToken || undefined);
+
+      return res.status(200).json({
+        success: true,
+        message: `Bot conectado en vivo: ${status.botUsername || status.botName}`,
+        ...status,
+        data: status
+      });
+    } catch (error) {
+      return res.status(error.statusCode || 400).json({
+        success: false,
+        connected: false,
+        error: {
+          message: error.message || 'No fue posible conectar el bot de Telegram.',
+          status: error.statusCode || 400
+        }
+      });
+    }
+  };
+
+  /**
+   * POST /api/automation/telegram/disconnect
+   * Pausa el bucle de Long Polling de Telegram de forma controlada
+   */
+  disconnectTelegramBot = async (req, res, next) => {
+    try {
+      if (!this.telegramBotService) {
+        return res.status(503).json({
+          success: false,
+          error: { message: 'Servicio de Telegram no inicializado.' }
+        });
+      }
+
+      const status = await this.telegramBotService.disconnect();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Long Polling de Telegram pausado.',
+        ...status,
+        data: status
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * POST /api/automation/telegram-webhook
    * Manejador de webhook para n8n y Telegram Bot
    */
@@ -341,7 +430,7 @@ export class AutomationController {
           '',
           '📍 Para indicarte las paradas y colectivos más cercanos, por favor comparte tu ubicación mediante el clip de adjuntos en Telegram (*Ubicación en tiempo real* o *Ubicación actual*).',
           '',
-          '💡 También puedes consultar el mapa interactivo con las 8 rutas de Tuxtla Gutiérrez en tiempo real.'
+          '💡 También puedes consultar el mapa interactivo con las 12 rutas de Tuxtla Gutiérrez en tiempo real.'
         ].join('\n');
 
         return res.status(200).json({
@@ -372,7 +461,7 @@ export class AutomationController {
           '',
           `Hola ${userName}, no encontramos paradas registradas en un radio de 1.5 km de tus coordenadas (${lat.toFixed(4)}, ${lng.toFixed(4)}).`,
           '',
-          `💡 *Sugerencia:* Las 8 rutas troncales cubren el Blvd. Belisario Domínguez, Av. Central, Libramiento Sur, Libramiento Norte y Calle Central.`
+          `💡 *Sugerencia:* Las 12 rutas troncales cubren el Blvd. Belisario Domínguez, Av. Central, Libramiento Sur, Libramiento Norte y Calle Central.`
         ].join('\n');
       } else {
         const lines = [

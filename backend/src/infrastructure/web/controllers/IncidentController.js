@@ -50,7 +50,20 @@ const incidentsStore = new Map([
   ]
 ]);
 
+export function getActiveIncidents() {
+  return Array.from(incidentsStore.values())
+    .filter((i) => i.status === 'ACTIVE_ALERT')
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
 export class IncidentController {
+  /**
+   * Obtiene directamente las alertas viales activas en memoria para integraciones internas (ej. TelegramBotService)
+   */
+  listActiveIncidents = () => {
+    return getActiveIncidents();
+  };
+
   /**
    * GET /api/incidents
    * Retorna los incidentes viales registrados (filtrables por ?status=)
