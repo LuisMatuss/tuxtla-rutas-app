@@ -32672,7 +32672,7 @@ export const BACKUP_ROUTES = [
     "id": "a0000008-0000-0000-0000-000000000008",
     "name": "Ruta 73 - Ingeniería UNACH / ISSSTE / Centro",
     "description": "Enlaza la Facultad de Ingeniería de la UNACH, Hospital ISSSTE Belisario Domínguez y Parque de la Marimba con el Mercado Díaz Ordaz.",
-    "color": "#4F46E5",
+    "color": "#0284C7",
     "scheduleInfo": {
       "firstRun": "05:45",
       "lastRun": "22:00",

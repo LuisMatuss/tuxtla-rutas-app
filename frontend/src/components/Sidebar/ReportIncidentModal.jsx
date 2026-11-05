@@ -1,14 +1,15 @@
-// Componente Modal: Reporte Ciudadano de Incidencias en Ruta / Parada (Zero-Slop, Apple Maps style)
+// Componente Modal: Reporte Ciudadano de Incidencias en Ruta / Parada (Paleta Colectivo Tuxtla)
+
 import React, { useState } from 'react';
-import { X, Send, AlertTriangle, MapPin } from 'lucide-react';
+import { X, Send, AlertTriangle, MapPin, CheckCircle2 } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
 
 const INCIDENT_CATEGORIES = [
-  { id: 'CROWDED_UNIT', label: '🚐 Combi Llena', icon: '🚐' },
-  { id: 'HIGH_DELAY', label: '⏳ Demora (+20 min)', icon: '⏳' },
-  { id: 'ROAD_BLOCK', label: '🚧 Calle Cerrada', icon: '🚧' },
-  { id: 'HEAVY_TRAFFIC', label: '🚗 Tráfico Severo', icon: '🚗' },
-  { id: 'FLOODING', label: '🌧️ Encharcamiento', icon: '🌧️' }
+  { id: 'CROWDED_UNIT', label: 'Combi Llena' },
+  { id: 'HIGH_DELAY', label: 'Demora (+20 min)' },
+  { id: 'ROAD_BLOCK', label: 'Calle Cerrada' },
+  { id: 'HEAVY_TRAFFIC', label: 'Tráfico Severo' },
+  { id: 'FLOODING', label: 'Encharcamiento' }
 ];
 
 export function ReportIncidentModal({
@@ -55,7 +56,7 @@ export function ReportIncidentModal({
         setSuccess(false);
         setComment('');
         onClose();
-      }, 1200);
+      }, 1100);
     } catch (err) {
       console.warn('Error al enviar reporte:', err);
     } finally {
@@ -67,11 +68,8 @@ export function ReportIncidentModal({
     <div
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.78)',
         backdropFilter: 'blur(6px)',
         zIndex: 2000,
         display: 'flex',
@@ -79,50 +77,49 @@ export function ReportIncidentModal({
         justifyContent: 'center',
         padding: '16px'
       }}
+      onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         style={{
           width: '100%',
           maxWidth: '420px',
-          background: 'rgba(15, 23, 42, 0.98)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          background: '#0F172A',
+          border: '1px solid var(--border-strong)',
           borderRadius: '14px',
-          padding: '16px',
-          boxShadow: '0 16px 36px rgba(0, 0, 0, 0.6)',
+          padding: '18px',
+          boxShadow: 'var(--shadow-lg)',
           display: 'flex',
           flexDirection: 'column',
           gap: '12px'
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Cabecera */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div
+            <AlertTriangle size={17} color="#EF4444" />
+            <h3
               style={{
-                width: '30px',
-                height: '30px',
-                borderRadius: '6px',
-                background: 'rgba(239, 68, 68, 0.2)',
-                color: '#f87171',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+                fontFamily: 'var(--font-display)',
+                margin: 0,
+                fontSize: '15px',
+                color: '#F8FAFC',
+                fontWeight: 700
               }}
             >
-              <AlertTriangle size={16} />
-            </div>
-            <h3 style={{ margin: 0, fontSize: '14px', color: '#f8fafc', fontWeight: 700 }}>
-              Reportar Incidencia
+              Reportar Incidencia Vial
             </h3>
           </div>
 
           <button
             type="button"
             onClick={onClose}
+            aria-label="Cerrar ventana"
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#94a3b8',
+              color: '#CBD5E1',
               cursor: 'pointer',
               padding: '4px'
             }}
@@ -139,21 +136,20 @@ export function ReportIncidentModal({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '6px'
+              gap: '8px'
             }}
           >
-            <div style={{ fontSize: '32px' }}>✅</div>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#34d399' }}>
-              Reporte enviado
+            <CheckCircle2 size={28} color="#10B981" />
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#6EE7B7' }}>
+              Reporte enviado al centro vial
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Categoría (Chips) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>
-                INCIDENCIA:
-              </label>
+              <span style={{ fontSize: '12px', color: '#CBD5E1', fontWeight: 600 }}>
+                Tipo de incidencia:
+              </span>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }}>
                 {INCIDENT_CATEGORIES.map((cat) => (
                   <button
@@ -161,18 +157,16 @@ export function ReportIncidentModal({
                     type="button"
                     onClick={() => setCategory(cat.id)}
                     style={{
-                      padding: '6px 8px',
-                      background: category === cat.id ? 'rgba(56, 189, 248, 0.2)' : 'rgba(30, 41, 59, 0.6)',
-                      border: category === cat.id ? '1px solid #38bdf8' : '1px solid transparent',
+                      padding: '7px 8px',
+                      background: category === cat.id ? 'rgba(2, 132, 199, 0.22)' : '#1E293B',
+                      border: category === cat.id ? '1px solid #38BDF8' : '1px solid var(--border-subtle)',
                       borderRadius: '6px',
-                      color: category === cat.id ? '#38bdf8' : '#cbd5e1',
+                      color: category === cat.id ? '#7DD3FC' : '#CBD5E1',
                       fontSize: '12px',
                       fontWeight: category === cat.id ? 700 : 500,
+                      fontFamily: 'inherit',
                       cursor: 'pointer',
-                      textAlign: 'left',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
+                      textAlign: 'left'
                     }}
                   >
                     {cat.label}
@@ -181,21 +175,22 @@ export function ReportIncidentModal({
               </div>
             </div>
 
-            {/* Ruta Afectada */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>
-                COLECTIVO / RUTA:
+              <label htmlFor="report-modal-route" style={{ fontSize: '12px', color: '#CBD5E1', fontWeight: 600 }}>
+                Colectivo / Ruta:
               </label>
               <select
+                id="report-modal-route"
                 value={routeId}
                 onChange={(e) => setRouteId(e.target.value)}
                 style={{
                   padding: '7px 8px',
-                  background: 'rgba(15, 23, 42, 0.8)',
+                  background: '#1E293B',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: '6px',
-                  color: '#ffffff',
+                  color: '#FFFFFF',
                   fontSize: '12px',
+                  fontFamily: 'inherit',
                   outline: 'none'
                 }}
               >
@@ -207,50 +202,50 @@ export function ReportIncidentModal({
               </select>
             </div>
 
-            {/* Comentario Breve */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>
-                DETALLES (OPCIONAL):
+              <label htmlFor="report-modal-comment" style={{ fontSize: '12px', color: '#CBD5E1', fontWeight: 600 }}>
+                Detalles (opcional):
               </label>
               <input
+                id="report-modal-comment"
                 type="text"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Breve referencia o ubicación..."
+                placeholder="Breve referencia o calle..."
                 style={{
                   padding: '7px 8px',
-                  background: 'rgba(15, 23, 42, 0.8)',
+                  background: '#1E293B',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: '6px',
-                  color: '#ffffff',
+                  color: '#FFFFFF',
                   fontSize: '12px',
+                  fontFamily: 'inherit',
                   outline: 'none'
                 }}
               />
             </div>
 
-            {/* Ubicación */}
-            <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <MapPin size={12} color="#94a3b8" />
+            <div style={{ fontSize: '12px', color: '#A8B8CD', display: 'flex', alignItems: 'center', gap: '5px', fontVariantNumeric: 'tabular-nums' }}>
+              <MapPin size={13} color="#EF4444" />
               <span>
                 {userLocation ? `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}` : 'Tuxtla Centro'}
               </span>
             </div>
 
-            {/* Acciones */}
-            <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
               <button
                 type="button"
                 onClick={onClose}
                 style={{
                   flex: 1,
-                  padding: '8px',
-                  background: 'rgba(255, 255, 255, 0.08)',
+                  padding: '9px',
+                  background: '#1E293B',
                   border: '1px solid var(--border-subtle)',
-                  borderRadius: '6px',
-                  color: '#cbd5e1',
+                  borderRadius: '8px',
+                  color: '#CBD5E1',
                   fontSize: '12px',
                   fontWeight: 600,
+                  fontFamily: 'inherit',
                   cursor: 'pointer'
                 }}
               >
@@ -262,13 +257,14 @@ export function ReportIncidentModal({
                 disabled={submitting}
                 style={{
                   flex: 2,
-                  padding: '8px',
-                  background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
-                  border: 'none',
-                  borderRadius: '6px',
-                  color: '#ffffff',
+                  padding: '9px',
+                  background: '#F59E0B',
+                  border: '1px solid #FDE68A',
+                  borderRadius: '8px',
+                  color: '#0F172A',
                   fontSize: '12px',
                   fontWeight: 700,
+                  fontFamily: 'inherit',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',

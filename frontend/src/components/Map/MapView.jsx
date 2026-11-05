@@ -358,10 +358,10 @@ export function MapView({
             >
               {/* Encabezado y acciones rápidas */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#CBD5E1', textTransform: 'uppercase' }}>
                   Filtro de Rutas en Mapa
                 </span>
-                <span style={{ fontSize: '12px', color: '#60a5fa', fontWeight: 700 }}>
+                <span style={{ fontSize: '12px', color: '#38BDF8', fontWeight: 700 }}>
                   {visibleCount} activas
                 </span>
               </div>
@@ -376,9 +376,9 @@ export function MapView({
                   style={{
                     padding: '6px 4px',
                     borderRadius: '8px',
-                    border: '1px solid rgba(251, 191, 36, 0.4)',
-                    background: 'rgba(251, 191, 36, 0.12)',
-                    color: '#fef08a',
+                    border: '1px solid rgba(251, 191, 36, 0.45)',
+                    background: 'rgba(245, 158, 11, 0.14)',
+                    color: '#FEF08A',
                     fontSize: '12px',
                     fontWeight: 700,
                     cursor: 'pointer'
@@ -397,9 +397,9 @@ export function MapView({
                   style={{
                     padding: '6px 4px',
                     borderRadius: '8px',
-                    border: '1px solid rgba(239, 68, 68, 0.4)',
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    color: '#fca5a5',
+                    border: '1px solid rgba(239, 68, 68, 0.45)',
+                    background: 'rgba(239, 68, 68, 0.14)',
+                    color: '#FCA5A5',
                     fontSize: '12px',
                     fontWeight: 700,
                     cursor: 'pointer'
@@ -416,9 +416,9 @@ export function MapView({
                   style={{
                     padding: '6px 4px',
                     borderRadius: '8px',
-                    border: '1px solid rgba(59, 130, 246, 0.4)',
-                    background: 'rgba(59, 130, 246, 0.12)',
-                    color: '#93c5fd',
+                    border: '1px solid rgba(56, 189, 248, 0.45)',
+                    background: 'rgba(2, 132, 199, 0.16)',
+                    color: '#BAE6FD',
                     fontSize: '12px',
                     fontWeight: 700,
                     cursor: 'pointer'
@@ -428,16 +428,15 @@ export function MapView({
                 </button>
               </div>
 
-              {/* Selector de Sentido: Ida y Vuelta / Solo Ida / Solo Vuelta */}
+              {/* Selector de Sentido: Ida y Vuelta / Solo Ida / Solo Vuelta (sección plana con divisores, cero tarjetas anidadas) */}
               <div
                 style={{
-                  padding: '8px',
-                  borderRadius: '8px',
-                  background: 'rgba(30, 41, 59, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)'
+                  padding: '8px 0',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.12)'
                 }}
               >
-                <div style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#CBD5E1', marginBottom: '6px' }}>
                   Sentido en Mapa:
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px' }}>
@@ -457,9 +456,9 @@ export function MapView({
                         style={{
                           padding: '5px 4px',
                           borderRadius: '6px',
-                          border: isCur ? '1px solid #3b82f6' : '1px solid transparent',
-                          background: isCur ? '#2563eb' : 'rgba(15, 23, 42, 0.5)',
-                          color: '#ffffff',
+                          border: isCur ? '1px solid #38BDF8' : '1px solid rgba(255, 255, 255, 0.12)',
+                          background: isCur ? '#0369A1' : '#1E293B',
+                          color: '#FFFFFF',
                           fontSize: '12px',
                           fontWeight: isCur ? 700 : 500,
                           cursor: 'pointer'
@@ -479,13 +478,12 @@ export function MapView({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     fontSize: '12px',
-                    color: '#94a3b8',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                    paddingTop: '6px'
+                    color: '#CBD5E1',
+                    paddingTop: '4px'
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '16px', height: '3px', background: '#38bdf8', display: 'inline-block' }}></span>
+                    <span style={{ width: '16px', height: '3px', background: '#38BDF8', display: 'inline-block' }}></span>
                     <span>Ida (➔ Continua)</span>
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -493,7 +491,7 @@ export function MapView({
                       style={{
                         width: '16px',
                         height: '2px',
-                        borderTop: '2px dashed #fbbf24',
+                        borderTop: '2px dashed #FBBF24',
                         display: 'inline-block'
                       }}
                     ></span>
@@ -516,7 +514,8 @@ export function MapView({
                 {routes.map((route) => {
                   const isChecked = visibleRouteIds.includes(route.id);
                   const isSelected = selectedRouteId === route.id;
-                  const color = route.color || '#2563EB';
+                  const rawColor = route.color || '#0284C7';
+                  const color = rawColor.toUpperCase() === '#4F46E5' ? '#0284C7' : rawColor;
 
                   return (
                     <label
@@ -528,14 +527,14 @@ export function MapView({
                         padding: '6px 8px',
                         borderRadius: '6px',
                         background: isSelected
-                          ? 'rgba(37, 99, 235, 0.25)'
+                          ? 'rgba(2, 132, 199, 0.22)'
                           : isChecked
                           ? 'rgba(30, 41, 59, 0.4)'
                           : 'transparent',
-                        border: isSelected ? '1px solid #3b82f6' : '1px solid transparent',
+                        border: isSelected ? '1px solid #38BDF8' : '1px solid transparent',
                         cursor: 'pointer',
                         fontSize: '12px',
-                        color: isChecked ? '#f8fafc' : '#94a3b8',
+                        color: isChecked ? '#F8FAFC' : '#CBD5E1',
                         transition: 'background 0.15s ease'
                       }}
                     >
@@ -761,13 +760,14 @@ export function MapView({
           bottom: '24px',
           right: '24px',
           zIndex: 1000,
-          background: 'rgba(15, 23, 42, 0.85)',
+          background: 'rgba(15, 23, 42, 0.92)',
           backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
           padding: '8px 14px',
           borderRadius: '20px',
-          color: '#e2e8f0',
+          color: '#F8FAFC',
           fontSize: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.38)',
           display: 'flex',
           alignItems: 'center',
           gap: '6px',

@@ -49,6 +49,8 @@ export const createAutomationRouter = (dbPool = pool) => {
   router.get('/telegram/status', controller.getTelegramStatus);
   router.post('/telegram/connect', controller.connectTelegramBot);
   router.post('/telegram/disconnect', controller.disconnectTelegramBot);
+  router.post('/telegram/simulate', controller.simulateTelegramQuery);
+  router.get('/postgres-audit', controller.renderPostgresAuditView);
 
   // Endpoints de automatización n8n y gestión de flota
   router.post('/telegram-webhook', controller.handleTelegramWebhook);

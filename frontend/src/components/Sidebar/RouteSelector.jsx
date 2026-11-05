@@ -1,6 +1,5 @@
 // Componente de Panel Lateral: Selector interactivo y buscador de rutas y direcciones
-// Soporta búsqueda inteligente en paradas, colonias y Nominatim OSM en Tuxtla Gutiérrez,
-// trazado directo de combis al destino, y visualización compacta de frecuencias y paradas Ida/Vuelta.
+// Paleta Colectivo Tuxtla (Cero tarjetas anidadas, contraste WCAG AA y tipografía >= 12px)
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
@@ -12,13 +11,23 @@ import {
   Eye,
   EyeOff,
   Navigation,
-  Compass,
   ArrowRight,
   Clock,
   CheckCircle2,
+  RotateCcw,
   X
 } from 'lucide-react';
 import { searchTuxtlaAddresses, apiClient } from '../../api/client.js';
+
+function resolveColectivoColor(rawColor) {
+  if (!rawColor) return '#0284C7';
+  const upper = rawColor.toUpperCase();
+  // Reemplazar cualquier tono índigo/violeta heredado por Azul Cielo Colectivo
+  if (upper === '#4F46E5' || upper === '#6366F1' || upper === '#7C3AED' || upper === '#8B5CF6') {
+    return '#0284C7';
+  }
+  return rawColor;
+}
 
 export function RouteSelector({
   routes = [],
@@ -35,10 +44,8 @@ export function RouteSelector({
   userLocation = null,
   onSetUserLocation,
   onClearUserLocation,
-  directionFilter = 'ALL',
   onSetDirectionFilter,
   onSelectTrip,
-  selectedTrip = null,
   onSwitchToPlanner
 }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,13 +53,12 @@ export function RouteSelector({
   const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [isSearchingAddresses, setIsSearchingAddresses] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [inlineDirection, setInlineDirection] = useState('ALL'); // 'ALL' | 'IDA' | 'VUELTA'
+  const [inlineDirection, setInlineDirection] = useState('ALL');
   const [activePlannedTrip, setActivePlannedTrip] = useState(null);
 
   const searchContainerRef = useRef(null);
   const favorites = Array.isArray(favoriteIds) ? favoriteIds : [];
 
-  // Búsqueda inteligente de direcciones y paradas con debounce
   useEffect(() => {
     if (!searchTerm.trim() || searchTerm.trim().length < 2) {
       setAddressSuggestions([]);
@@ -70,12 +76,12 @@ export function RouteSelector({
           setAddressSuggestions(results);
           setShowDropdown(results.length > 0);
         }
-      } catch (err) {
+      } catch {
         if (isMounted) setAddressSuggestions([]);
       } finally {
         if (isMounted) setIsSearchingAddresses(false);
       }
-    }, 280);
+    }, 260);
 
     return () => {
       isMounted = false;
@@ -83,7 +89,6 @@ export function RouteSelector({
     };
   }, [searchTerm]);
 
-  // Cerrar desplegable al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
@@ -101,13 +106,11 @@ export function RouteSelector({
     }
   };
 
-  // Manejador al elegir sugerencia de dirección o lugar
   const handleSelectSuggestion = async (item) => {
     setShowDropdown(false);
     setSearchTerm('');
 
     if (userLocation && Number.isFinite(userLocation.lat) && Number.isFinite(userLocation.lng)) {
-      // Caso A: Ya tiene un punto activo en el mapa -> Calcular qué combi tomar desde ese punto hasta la dirección buscada
       try {
         const planRes = await apiClient.planTrip({
           originLat: userLocation.lat,
@@ -125,7 +128,6 @@ export function RouteSelector({
           if (trip) {
             setActivePlannedTrip(trip);
             if (onSelectTrip) onSelectTrip(trip);
-            // Asegurar que la ruta esté visible en el mapa
             if (trip.routeId && onToggleRouteVisibility && !visibleRouteIds.includes(trip.routeId)) {
               onToggleRouteVisibility(trip.routeId);
             }
@@ -134,15 +136,11 @@ export function RouteSelector({
       } catch (err) {
         console.warn('Error al calcular trayecto hacia dirección buscada:', err);
       }
-    } else {
-      // Caso B: No tiene punto previo -> Mover el mapa a esa dirección y abrir ahí mismo el círculo radar
-      if (onSetUserLocation) {
-        onSetUserLocation({ lat: item.lat, lng: item.lng });
-      }
+    } else if (onSetUserLocation) {
+      onSetUserLocation({ lat: item.lat, lng: item.lng });
     }
   };
 
-  // Filtrado de lista de rutas por término
   const filteredRoutes = useMemo(() => {
     return routes.filter((r) => {
       if (filterFavorites && !favorites.includes(r.id)) {
@@ -157,11 +155,6 @@ export function RouteSelector({
     });
   }, [routes, searchTerm, filterFavorites, favorites]);
 
-  // Ruta seleccionada
-  const activeRoute = useMemo(() => {
-    return routes.find((r) => r.id === selectedRouteId) || null;
-  }, [routes, selectedRouteId]);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* 1. Barra de Búsqueda Inteligente de Direcciones y Rutas */}
@@ -173,7 +166,7 @@ export function RouteSelector({
             left: '12px',
             top: '50%',
             transform: 'translateY(-50%)',
-            color: isSearchingAddresses ? '#10b981' : 'var(--text-muted)'
+            color: isSearchingAddresses ? '#10B981' : '#38BDF8'
           }}
         />
         <input
@@ -187,17 +180,17 @@ export function RouteSelector({
           }}
           style={{
             width: '100%',
-            padding: '9px 12px 9px 36px',
-            background: 'rgba(15, 23, 42, 0.7)',
+            padding: '9px 32px 9px 36px',
+            background: '#1E293B',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-md)',
-            color: 'var(--text-main)',
+            color: '#F8FAFC',
             fontSize: '13px',
             outline: 'none',
             fontFamily: 'inherit',
             transition: 'border-color 0.2s ease'
           }}
-          onFocusCapture={(e) => (e.target.style.borderColor = '#10b981')}
+          onFocusCapture={(e) => (e.target.style.borderColor = '#38BDF8')}
           onBlurCapture={(e) => (e.target.style.borderColor = 'var(--border-subtle)')}
         />
 
@@ -209,6 +202,7 @@ export function RouteSelector({
               setAddressSuggestions([]);
               setShowDropdown(false);
             }}
+            aria-label="Limpiar texto"
             style={{
               position: 'absolute',
               right: '10px',
@@ -216,30 +210,31 @@ export function RouteSelector({
               transform: 'translateY(-50%)',
               background: 'none',
               border: 'none',
-              color: '#94a3b8',
+              color: '#CBD5E1',
               cursor: 'pointer',
-              padding: '2px'
+              padding: '2px',
+              display: 'flex',
+              alignItems: 'center'
             }}
           >
             <X size={14} />
           </button>
         )}
 
-        {/* Desplegable de Sugerencias de Direcciones y Paradas */}
+        {/* Desplegable de Sugerencias */}
         {showDropdown && addressSuggestions.length > 0 && (
           <div
             id="search-address-suggestions-dropdown"
             style={{
               position: 'absolute',
-              top: '105%',
+              top: 'calc(100% + 6px)',
               left: 0,
               right: 0,
               zIndex: 1200,
-              background: 'rgba(15, 23, 42, 0.98)',
-              backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
+              background: '#0F172A',
+              border: '1px solid var(--border-strong)',
               borderRadius: '10px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.65)',
+              boxShadow: 'var(--shadow-lg)',
               maxHeight: '260px',
               overflowY: 'auto',
               display: 'flex',
@@ -252,17 +247,17 @@ export function RouteSelector({
                 padding: '6px 10px',
                 fontSize: '12px',
                 fontWeight: 700,
-                color: '#10b981',
-                textTransform: 'uppercase',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+                color: '#6EE7B7',
+                borderBottom: '1px solid var(--border-subtle)'
               }}
             >
-              Lugares y Paradas en Tuxtla ({addressSuggestions.length})
+              Lugares y paradas en Tuxtla ({addressSuggestions.length})
             </div>
 
             {addressSuggestions.map((item) => (
-              <div
+              <button
                 key={item.id}
+                type="button"
                 onClick={() => handleSelectSuggestion(item)}
                 style={{
                   display: 'flex',
@@ -270,33 +265,28 @@ export function RouteSelector({
                   gap: '8px',
                   padding: '8px 10px',
                   borderRadius: '6px',
+                  border: 'none',
+                  background: 'transparent',
+                  textAlign: 'left',
+                  fontFamily: 'inherit',
                   cursor: 'pointer',
-                  transition: 'background 0.15s ease'
+                  width: '100%'
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#1E293B')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                <div
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '6px',
-                    background: item.type === 'stop' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                  }}
-                >
-                  <MapPin size={13} color={item.type === 'stop' ? '#38bdf8' : '#10b981'} />
-                </div>
+                <MapPin
+                  size={14}
+                  color={item.type === 'stop' ? '#38BDF8' : '#10B981'}
+                  style={{ flexShrink: 0 }}
+                />
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
                       fontSize: '12px',
                       fontWeight: 700,
-                      color: '#f8fafc',
+                      color: '#F8FAFC',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis'
@@ -307,7 +297,7 @@ export function RouteSelector({
                   <div
                     style={{
                       fontSize: '12px',
-                      color: '#94a3b8',
+                      color: '#A8B8CD',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis'
@@ -317,21 +307,21 @@ export function RouteSelector({
                   </div>
                 </div>
 
-                <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600 }}>
-                  {userLocation ? 'Ir ➔' : 'Ver 🔍'}
+                <span style={{ fontSize: '12px', color: '#FBBF24', fontWeight: 700, flexShrink: 0 }}>
+                  {userLocation ? 'Ir ➔' : 'Ver'}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Tarjeta de Trayecto Planificado Activo (si se calculó desde el buscador) */}
+      {/* Trayecto Planificado Activo (Fila destacada sin tarjetas anidadas) */}
       {activePlannedTrip && (
         <div
           style={{
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)',
-            border: '1.5px solid #10b981',
+            background: '#1E293B',
+            border: '1px solid #10B981',
             borderRadius: '10px',
             padding: '10px 12px',
             display: 'flex',
@@ -341,8 +331,8 @@ export function RouteSelector({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Navigation size={14} color="#10b981" />
-              <strong style={{ fontSize: '13px', color: '#f8fafc' }}>
+              <Navigation size={14} color="#10B981" />
+              <strong style={{ fontSize: '13px', color: '#F8FAFC' }}>
                 Ruta recomendada al destino
               </strong>
             </div>
@@ -356,7 +346,7 @@ export function RouteSelector({
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#94a3b8',
+                color: '#CBD5E1',
                 cursor: 'pointer',
                 padding: '2px'
               }}
@@ -365,23 +355,14 @@ export function RouteSelector({
             </button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
-              style={{
-                padding: '3px 8px',
-                borderRadius: '6px',
-                background: activePlannedTrip.routeColor || '#2563eb',
-                color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: 800
-              }}
-            >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+            <strong style={{ color: '#6EE7B7', fontWeight: 800 }}>
               {activePlannedTrip.routeName || 'Combi'}
+            </strong>
+            <span style={{ color: '#F8FAFC', fontVariantNumeric: 'tabular-nums' }}>
+              • ~{activePlannedTrip.estimatedMinutes || 15} min
             </span>
-            <span style={{ fontSize: '12px', color: '#cbd5e1' }}>
-              ⏱️ ~{activePlannedTrip.estimatedMinutes || 15} min
-            </span>
-            <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+            <span style={{ color: '#A8B8CD', fontVariantNumeric: 'tabular-nums' }}>
               ({activePlannedTrip.stopsCount || 5} paradas)
             </span>
           </div>
@@ -391,19 +372,19 @@ export function RouteSelector({
               type="button"
               onClick={onSwitchToPlanner}
               style={{
-                marginTop: '2px',
-                background: 'rgba(16, 185, 129, 0.2)',
-                border: '1px solid #10b981',
+                background: '#065F46',
+                border: '1px solid #10B981',
                 borderRadius: '6px',
-                padding: '4px 8px',
-                color: '#6ee7b7',
+                padding: '6px 10px',
+                color: '#FFFFFF',
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
+                fontFamily: 'inherit',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '4px'
+                gap: '5px'
               }}
             >
               <span>Ver recorrido paso a paso en "¿Cómo llego?"</span>
@@ -429,17 +410,17 @@ export function RouteSelector({
             gap: '5px',
             padding: '8px 6px',
             borderRadius: 'var(--radius-md)',
-            border: !selectedRouteId && !filterFavorites ? '1.5px solid var(--color-primary-light)' : '1px solid var(--border-subtle)',
-            background: !selectedRouteId && !filterFavorites ? 'rgba(16, 185, 129, 0.15)' : 'rgba(30, 41, 59, 0.5)',
-            color: !selectedRouteId && !filterFavorites ? '#ffffff' : 'var(--text-muted)',
+            border: !selectedRouteId && !filterFavorites ? '1px solid #10B981' : '1px solid var(--border-subtle)',
+            background: !selectedRouteId && !filterFavorites ? 'rgba(13, 148, 104, 0.2)' : '#1E293B',
+            color: !selectedRouteId && !filterFavorites ? '#FFFFFF' : '#CBD5E1',
             cursor: 'pointer',
             fontFamily: 'inherit',
             fontSize: '12px',
             fontWeight: 600,
-            transition: 'all 0.2s ease'
+            fontVariantNumeric: 'tabular-nums'
           }}
         >
-          <Layers size={13} color={!selectedRouteId && !filterFavorites ? '#10b981' : '#94a3b8'} />
+          <Layers size={13} color={!selectedRouteId && !filterFavorites ? '#10B981' : '#A8B8CD'} />
           <span>Todas ({routes.length})</span>
         </button>
 
@@ -453,17 +434,17 @@ export function RouteSelector({
             gap: '5px',
             padding: '8px 6px',
             borderRadius: 'var(--radius-md)',
-            border: filterFavorites ? '1.5px solid #fbbf24' : '1px solid var(--border-subtle)',
-            background: filterFavorites ? 'rgba(251, 191, 36, 0.15)' : 'rgba(30, 41, 59, 0.5)',
-            color: filterFavorites ? '#fbbf24' : 'var(--text-muted)',
+            border: filterFavorites ? '1px solid #F59E0B' : '1px solid var(--border-subtle)',
+            background: filterFavorites ? 'rgba(245, 158, 11, 0.18)' : '#1E293B',
+            color: filterFavorites ? '#FDE68A' : '#CBD5E1',
             cursor: 'pointer',
             fontFamily: 'inherit',
             fontSize: '12px',
             fontWeight: 600,
-            transition: 'all 0.2s ease'
+            fontVariantNumeric: 'tabular-nums'
           }}
         >
-          <Star size={13} fill={filterFavorites ? '#fbbf24' : 'none'} color="#fbbf24" />
+          <Star size={13} fill={filterFavorites ? '#F59E0B' : 'none'} color="#F59E0B" />
           <span>Favoritas ({favorites.length})</span>
         </button>
 
@@ -480,28 +461,28 @@ export function RouteSelector({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px',
+            gap: '5px',
             padding: '8px 6px',
             borderRadius: 'var(--radius-md)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            background: 'rgba(239, 68, 68, 0.12)',
-            color: '#fca5a5',
+            border: '1px solid rgba(239, 68, 68, 0.42)',
+            background: 'rgba(239, 68, 68, 0.14)',
+            color: '#FCA5A5',
             cursor: 'pointer',
             fontFamily: 'inherit',
             fontSize: '12px',
-            fontWeight: 600,
-            transition: 'all 0.2s ease'
+            fontWeight: 600
           }}
         >
-          <span>🧹 Limpiar</span>
+          <RotateCcw size={12} />
+          <span>Limpiar</span>
         </button>
       </div>
 
-      {/* Lista de Tarjetas de Rutas */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Lista Limpia de Rutas con Separadores border-bottom (Cero nested-cards) */}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
         {filteredRoutes.map((route) => {
           const isSelected = selectedRouteId === route.id;
-          const routeColor = route.color || '#2563EB';
+          const routeColor = resolveColectivoColor(route.color);
           const stopsCount = Array.isArray(route.stops) ? route.stops.length : 0;
           const isFavorite = favorites.includes(route.id);
           const isSuspended = route.status === 'SUSPENDED';
@@ -514,341 +495,338 @@ export function RouteSelector({
               onClick={() => onSelectRoute(route.id)}
               style={{
                 padding: '12px 8px',
-                border: 'none',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                borderBottom: '1px solid var(--border-subtle)',
                 background: isSelected
-                  ? 'rgba(255, 255, 255, 0.08)'
+                  ? 'rgba(30, 41, 59, 0.85)'
                   : isSuspended
-                  ? 'rgba(239, 68, 68, 0.05)'
+                  ? 'rgba(239, 68, 68, 0.06)'
                   : 'transparent',
-                borderRadius: isSelected ? '8px' : '0',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                position: 'relative',
-                opacity: isSuspended ? 0.75 : 1
+                transition: 'background-color 0.15s ease',
+                opacity: isSuspended ? 0.78 : 1
               }}
             >
-              <div>
-                {/* Cabecera de la Tarjeta */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span
-                      style={{
-                        width: '10px',
-                        height: '10px',
-                        borderRadius: '50%',
-                        background: isSuspended ? '#ef4444' : routeColor,
-                        display: 'inline-block',
-                        flexShrink: 0
-                      }}
-                    />
-                    <Bus size={15} color={isSuspended ? '#ef4444' : routeColor} />
-                    <strong style={{ fontSize: '13px', color: '#ffffff' }}>
-                      {route.name}
-                    </strong>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {/* Badge de Frecuencia / Estado */}
-                    {isSuspended ? (
-                      <span
-                        style={{
-                          background: 'rgba(239, 68, 68, 0.25)',
-                          color: '#fca5a5',
-                          padding: '2px 7px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: 700
-                        }}
-                      >
-                        🔴 Suspendida
-                      </span>
-                    ) : isDelayed ? (
-                      <span
-                        style={{
-                          background: 'rgba(245, 158, 11, 0.25)',
-                          color: '#fde047',
-                          padding: '2px 7px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: 700
-                        }}
-                      >
-                        🟡 Retrasos
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.12)',
-                          color: '#f8fafc',
-                          padding: '2px 7px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: 700
-                        }}
-                      >
-                        {route.scheduleInfo?.frequencyMinutes ? `${route.scheduleInfo.frequencyMinutes} min` : 'Activa'}
-                      </span>
-                    )}
-
-                    {/* Botón Ver en Mapa */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onToggleRouteVisibility) onToggleRouteVisibility(route.id);
-                      }}
-                      style={{
-                        background: isVisible ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.05)',
-                        border: isVisible ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        padding: '2px 6px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '12px',
-                        color: isVisible ? '#38bdf8' : '#94a3b8'
-                      }}
-                      title={isVisible ? 'Ocultar del mapa' : 'Mostrar en el mapa'}
-                    >
-                      {isVisible ? <Eye size={13} color="#38bdf8" /> : <EyeOff size={13} color="#94a3b8" />}
-                      <span style={{ fontSize: '12px', fontWeight: 600 }}>
-                        {isVisible ? 'En mapa' : 'Oculta'}
-                      </span>
-                    </button>
-
-                    {/* Botón Favorito Estrella */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleToggleFavorite(route.id, e)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '2px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                      title={isFavorite ? 'Quitar de favoritas' : 'Marcar como favorita'}
-                    >
-                      <Star
-                        size={15}
-                        fill={isFavorite ? '#fbbf24' : 'none'}
-                        color={isFavorite ? '#fbbf24' : '#64748b'}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                <p
-                  style={{
-                    fontSize: '12px',
-                    color: '#94a3b8',
-                    lineHeight: '1.4',
-                    margin: '4px 0 8px 0',
-                    display: '-webkit-box',
-                    WebkitLineClamp: isSelected ? 3 : 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden'
-                  }}
-                >
-                  {route.description}
-                </p>
-
-                {/* Info Compacta General */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#cbd5e1' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <MapPin size={12} color={routeColor} />
-                    {stopsCount} paradas
-                  </span>
-
-                  <span>
-                    🕒 Cada {route.scheduleInfo?.frequencyMinutes || 6} min • {route.scheduleInfo?.firstRun || '05:30'} - {route.scheduleInfo?.lastRun || '22:00'}
-                  </span>
-                </div>
-
-                {/* DETALLE COMPACTO INLINE CUANDO LA RUTA ESTÁ SELECCIONADA (REQUERIMIENTO 1) */}
-                {isSelected && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
+              {/* Cabecera de la Fila de Ruta */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                  <span
                     style={{
-                      marginTop: '10px',
-                      paddingTop: '10px',
-                      borderTop: '1px solid rgba(255, 255, 255, 0.12)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px'
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: isSuspended ? '#EF4444' : routeColor,
+                      display: 'inline-block',
+                      flexShrink: 0
+                    }}
+                  />
+                  <Bus size={15} color={isSuspended ? '#EF4444' : routeColor} style={{ flexShrink: 0 }} />
+                  <strong
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '13px',
+                      color: '#FFFFFF',
+                      lineHeight: 1.38
                     }}
                   >
-                    {/* Badge de Horario y Frecuencia Compacto */}
-                    <div
+                    {route.name}
+                  </strong>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  {isSuspended ? (
+                    <span
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '4px 0'
+                        background: 'rgba(239, 68, 68, 0.22)',
+                        color: '#FCA5A5',
+                        padding: '2px 7px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#38bdf8' }}>
-                        <Clock size={13} />
-                        <span style={{ fontWeight: 700 }}>
-                          Cada {route.scheduleInfo?.frequencyMinutes || 6} min
-                        </span>
-                        <span style={{ color: '#94a3b8' }}>•</span>
-                        <span style={{ color: '#e2e8f0' }}>
-                          {route.scheduleInfo?.firstRun || '05:30'} - {route.scheduleInfo?.lastRun || '22:00'}
-                        </span>
-                      </div>
+                      Suspendida
+                    </span>
+                  ) : isDelayed ? (
+                    <span
+                      style={{
+                        background: 'rgba(245, 158, 11, 0.22)',
+                        color: '#FDE68A',
+                        padding: '2px 7px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700
+                      }}
+                    >
+                      Retrasos
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        background: '#1E293B',
+                        border: '1px solid var(--border-subtle)',
+                        color: '#F8FAFC',
+                        padding: '2px 7px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        fontVariantNumeric: 'tabular-nums'
+                      }}
+                    >
+                      {route.scheduleInfo?.frequencyMinutes ? `${route.scheduleInfo.frequencyMinutes} min` : 'Activa'}
+                    </span>
+                  )}
 
-                      <span style={{ fontSize: '12px', color: '#34d399', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <CheckCircle2 size={12} />
-                        Activo
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onToggleRouteVisibility) onToggleRouteVisibility(route.id);
+                    }}
+                    style={{
+                      background: isVisible ? 'rgba(2, 132, 199, 0.22)' : 'transparent',
+                      border: isVisible ? '1px solid rgba(56, 189, 248, 0.48)' : '1px solid var(--border-subtle)',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      padding: '3px 7px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '12px',
+                      color: isVisible ? '#7DD3FC' : '#A8B8CD'
+                    }}
+                    title={isVisible ? 'Ocultar del mapa' : 'Mostrar en el mapa'}
+                  >
+                    {isVisible ? <Eye size={13} color="#38BDF8" /> : <EyeOff size={13} color="#A8B8CD" />}
+                    <span style={{ fontSize: '12px', fontWeight: 600 }}>
+                      {isVisible ? 'En mapa' : 'Oculta'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleToggleFavorite(route.id, e)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title={isFavorite ? 'Quitar de favoritas' : 'Marcar como favorita'}
+                  >
+                    <Star
+                      size={15}
+                      fill={isFavorite ? '#F59E0B' : 'none'}
+                      color={isFavorite ? '#F59E0B' : '#A8B8CD'}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <p
+                style={{
+                  fontSize: '12px',
+                  color: '#A8B8CD',
+                  lineHeight: 1.45,
+                  margin: '4px 0 8px 0',
+                  display: '-webkit-box',
+                  WebkitLineClamp: isSelected ? 3 : 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
+                }}
+              >
+                {route.description}
+              </p>
+
+              {/* Metadatos compactos */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  fontSize: '12px',
+                  color: '#CBD5E1',
+                  fontVariantNumeric: 'tabular-nums'
+                }}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <MapPin size={12} color={routeColor} />
+                  <span>{stopsCount} paradas</span>
+                </span>
+
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Clock size={12} color="#F59E0B" />
+                  <span>
+                    Cada {route.scheduleInfo?.frequencyMinutes || 6} min • {route.scheduleInfo?.firstRun || '05:30'} - {route.scheduleInfo?.lastRun || '22:00'}
+                  </span>
+                </span>
+              </div>
+
+              {/* Detalle inline de paradas Ida/Vuelta cuando está seleccionada */}
+              {isSelected && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    marginTop: '10px',
+                    paddingTop: '10px',
+                    borderTop: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#7DD3FC' }}>
+                      <Clock size={13} />
+                      <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                        Cada {route.scheduleInfo?.frequencyMinutes || 6} min
+                      </span>
+                      <span style={{ color: '#A8B8CD' }}>•</span>
+                      <span style={{ color: '#E2E8F0', fontVariantNumeric: 'tabular-nums' }}>
+                        {route.scheduleInfo?.firstRun || '05:30'} - {route.scheduleInfo?.lastRun || '22:00'}
                       </span>
                     </div>
 
-                    {/* Selector de Sentido de Paradas: Ida / Vuelta / Todas */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8' }}>
-                        PARADAS ({stopsCount})
-                      </span>
+                    <span style={{ fontSize: '12px', color: '#6EE7B7', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <CheckCircle2 size={12} />
+                      <span>Operativa</span>
+                    </span>
+                  </div>
 
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        {[
-                          { id: 'ALL', label: 'Todas' },
-                          { id: 'IDA', label: 'Ida (➔)' },
-                          { id: 'VUELTA', label: 'Vuelta (↩)' }
-                        ].map((m) => {
-                          const isActiveMode = inlineDirection === m.id;
-                          return (
-                            <button
-                              key={m.id}
-                              type="button"
-                              onClick={() => {
-                                setInlineDirection(m.id);
-                                if (onSetDirectionFilter) onSetDirectionFilter(m.id);
-                              }}
-                              style={{
-                                padding: '2px 7px',
-                                borderRadius: '4px',
-                                border: isActiveMode ? `1px solid ${routeColor}` : '1px solid rgba(255, 255, 255, 0.1)',
-                                background: isActiveMode ? `${routeColor}33` : 'transparent',
-                                color: isActiveMode ? '#ffffff' : '#94a3b8',
-                                fontSize: '12px',
-                                fontWeight: isActiveMode ? 700 : 500,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              {m.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#CBD5E1', fontVariantNumeric: 'tabular-nums' }}>
+                      Paradas ({stopsCount})
+                    </span>
 
-                    {/* Lista Vertical de Paradas Interactivas */}
-                    <div
-                      style={{
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '3px',
-                        paddingRight: '2px'
-                      }}
-                    >
-                      {Array.isArray(route.stops) && route.stops.length > 0 ? (
-                        (inlineDirection === 'VUELTA'
-                          ? [...route.stops].reverse()
-                          : route.stops
-                        ).map((stop, sIdx) => {
-                          const isStopActive = activeStop?.id === stop.id;
-                          const orderNum = stop.stopOrder || sIdx + 1;
-
-                          return (
-                            <div
-                              key={stop.id || `${stop.lat}-${stop.lng}`}
-                              onClick={() => {
-                                if (onSelectStop) onSelectStop(stop);
-                              }}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '5px 8px',
-                                borderRadius: '6px',
-                                background: isStopActive
-                                  ? `${routeColor}33`
-                                  : 'rgba(255, 255, 255, 0.03)',
-                                border: isStopActive
-                                  ? `1px solid ${routeColor}`
-                                  : '1px solid transparent',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!isStopActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!isStopActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                              }}
-                            >
-                              <span
-                                style={{
-                                  width: '18px',
-                                  height: '18px',
-                                  borderRadius: '50%',
-                                  background: isStopActive ? routeColor : 'rgba(255, 255, 255, 0.12)',
-                                  color: '#ffffff',
-                                  fontSize: '12px',
-                                  fontWeight: 700,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  flexShrink: 0
-                                }}
-                              >
-                                {orderNum}
-                              </span>
-
-                              <span
-                                style={{
-                                  fontSize: '12px',
-                                  color: isStopActive ? '#ffffff' : '#cbd5e1',
-                                  fontWeight: isStopActive ? 700 : 400,
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  flex: 1
-                                }}
-                              >
-                                {stop.name}
-                              </span>
-
-                              <span style={{ fontSize: '12px', color: '#64748b' }}>
-                                📍
-                              </span>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div style={{ fontSize: '12px', color: '#94a3b8', padding: '6px' }}>
-                          Sin paradas registradas para esta ruta.
-                        </div>
-                      )}
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {[
+                        { id: 'ALL', label: 'Todas' },
+                        { id: 'IDA', label: 'Ida ➔' },
+                        { id: 'VUELTA', label: 'Vuelta ↩' }
+                      ].map((m) => {
+                        const isActiveMode = inlineDirection === m.id;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              setInlineDirection(m.id);
+                              if (onSetDirectionFilter) onSetDirectionFilter(m.id);
+                            }}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              border: isActiveMode ? `1px solid ${routeColor}` : '1px solid var(--border-subtle)',
+                              background: isActiveMode ? '#0F172A' : 'transparent',
+                              color: isActiveMode ? '#FFFFFF' : '#CBD5E1',
+                              fontSize: '12px',
+                              fontWeight: isActiveMode ? 700 : 500,
+                              fontFamily: 'inherit',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {m.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                )}
-              </div>
+
+                  <div
+                    style={{
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      paddingRight: '2px'
+                    }}
+                  >
+                    {Array.isArray(route.stops) && route.stops.length > 0 ? (
+                      (inlineDirection === 'VUELTA'
+                        ? [...route.stops].reverse()
+                        : route.stops
+                      ).map((stop, sIdx) => {
+                        const isStopActive = activeStop?.id === stop.id;
+                        const orderNum = stop.stopOrder || sIdx + 1;
+
+                        return (
+                          <button
+                            key={stop.id || `${stop.lat}-${stop.lng}`}
+                            type="button"
+                            onClick={() => {
+                              if (onSelectStop) onSelectStop(stop);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '6px 6px',
+                              background: isStopActive ? '#0F172A' : 'transparent',
+                              border: 'none',
+                              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              fontFamily: 'inherit',
+                              width: '100%'
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: '20px',
+                                height: '20px',
+                                borderRadius: '50%',
+                                background: isStopActive ? routeColor : '#0F172A',
+                                border: '1px solid var(--border-subtle)',
+                                color: '#FFFFFF',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                fontVariantNumeric: 'tabular-nums',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                              }}
+                            >
+                              {orderNum}
+                            </span>
+
+                            <span
+                              style={{
+                                fontSize: '12px',
+                                color: isStopActive ? '#FFFFFF' : '#CBD5E1',
+                                fontWeight: isStopActive ? 700 : 400,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                flex: 1
+                              }}
+                            >
+                              {stop.name}
+                            </span>
+
+                            <MapPin size={12} color={isStopActive ? '#F59E0B' : '#A8B8CD'} style={{ flexShrink: 0 }} />
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div style={{ fontSize: '12px', color: '#A8B8CD', padding: '6px' }}>
+                        Sin paradas registradas para esta ruta.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
 
         {filteredRoutes.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '24px 12px', color: '#94a3b8', fontSize: '12px' }}>
+          <div style={{ textAlign: 'center', padding: '24px 12px', color: '#CBD5E1', fontSize: '12px' }}>
             {filterFavorites
-              ? 'No tienes rutas marcadas como favoritas. Haz clic en la estrella ⭐ de cualquier ruta para guardarla.'
+              ? 'No tienes rutas marcadas como favoritas. Pulsa la estrella en cualquier ruta para guardarla.'
               : 'No se encontraron rutas que coincidan con la búsqueda.'}
           </div>
         )}

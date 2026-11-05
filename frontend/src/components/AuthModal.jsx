@@ -1,7 +1,20 @@
-// Componente Modal: Autenticación No Invasiva, Gestión de Usuarios y Mensajes Contextuales
-// Soporta registro de roles (Pasajero, Soporte, Admin) y persistencia de favoritos y puntos personales
+// Componente Modal: Autenticación No Invasiva y Gestión Multi-Perfil
+// Unificado con BrandLogo Rubber Hose y reglas Impeccable (cero dark-glow, cero nested-cards, contraste AA).
+
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Lock, Shield, Headphones, Bus, X, LogIn, UserPlus, Sparkles, CheckCircle2 } from 'lucide-react';
+import {
+  User,
+  Mail,
+  Lock,
+  Shield,
+  Headphones,
+  X,
+  LogIn,
+  UserPlus,
+  CheckCircle2,
+  MapPin
+} from 'lucide-react';
+import { BrandLogo } from './BrandLogo.jsx';
 
 const USERS_STORAGE_KEY = 'tuxtla_registered_users';
 const CURRENT_USER_KEY = 'tuxtla_current_user';
@@ -83,19 +96,18 @@ export function saveCurrentSessionUser(user) {
 export function AuthModal({
   isOpen,
   onClose,
-  initialMode = 'login', // 'login' | 'register' | 'prompt'
+  initialMode = 'login',
   promptMessage = null,
   onLoginSuccess
 }) {
-  const [mode, setMode] = useState(initialMode); // 'login' | 'register' | 'prompt'
+  const [mode, setMode] = useState(initialMode);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState('USER'); // 'USER' | 'SUPPORT' | 'ADMIN'
+  const [selectedRole, setSelectedRole] = useState('USER');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Sincronizar modo inicial cuando se abre
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode);
@@ -106,21 +118,20 @@ export function AuthModal({
 
   if (!isOpen) return null;
 
-  // Manejar Registro
   const handleRegister = (e) => {
     e.preventDefault();
     setErrorMessage('');
 
     if (!name.trim()) {
-      setErrorMessage('Por favor ingresa tu nombre');
+      setErrorMessage('Ingresa tu nombre para crear la cuenta.');
       return;
     }
     if (!email.trim() || !email.includes('@')) {
-      setErrorMessage('Por favor ingresa un correo electrónico válido');
+      setErrorMessage('Ingresa un correo electrónico válido.');
       return;
     }
     if (!password.trim() || password.length < 3) {
-      setErrorMessage('La contraseña debe tener al menos 3 caracteres');
+      setErrorMessage('La contraseña debe tener al menos 3 caracteres.');
       return;
     }
 
@@ -130,11 +141,10 @@ export function AuthModal({
     );
 
     if (existing) {
-      setErrorMessage('Ya existe una cuenta con este correo. Inicia sesión en su lugar.');
+      setErrorMessage('Ya existe una cuenta con este correo. Inicia sesión.');
       return;
     }
 
-    // Al crear una cuenta nueva, personalPoints debe ser estrictamente { home: null, school: null, work: null } y favoriteIds []
     const newUser = {
       id: `usr_${Date.now()}`,
       name: name.trim(),
@@ -149,20 +159,19 @@ export function AuthModal({
     saveStoredUsers(updatedUsers);
     saveCurrentSessionUser(newUser);
 
-    setSuccessMessage(`¡Cuenta creada con éxito! Bienvenido, ${newUser.name}`);
+    setSuccessMessage(`Cuenta creada con éxito. Bienvenido, ${newUser.name}`);
     setTimeout(() => {
       if (onLoginSuccess) onLoginSuccess(newUser);
       onClose();
-    }, 600);
+    }, 550);
   };
 
-  // Manejar Login
   const handleLogin = (e) => {
     e.preventDefault();
     setErrorMessage('');
 
     if (!email.trim()) {
-      setErrorMessage('Por favor ingresa tu correo');
+      setErrorMessage('Ingresa tu correo electrónico.');
       return;
     }
 
@@ -174,19 +183,18 @@ export function AuthModal({
     );
 
     if (!found) {
-      setErrorMessage('Correo o contraseña incorrectos');
+      setErrorMessage('Correo o contraseña incorrectos.');
       return;
     }
 
     saveCurrentSessionUser(found);
-    setSuccessMessage(`¡Bienvenido de vuelta, ${found.name}!`);
+    setSuccessMessage(`Bienvenido de vuelta, ${found.name}`);
     setTimeout(() => {
       if (onLoginSuccess) onLoginSuccess(found);
       onClose();
-    }, 450);
+    }, 420);
   };
 
-  // Login Rápido de Prueba (Demo)
   const handleQuickDemoLogin = (demoEmail) => {
     setErrorMessage('');
     const currentUsers = loadStoredUsers();
@@ -206,7 +214,7 @@ export function AuthModal({
       setTimeout(() => {
         if (onLoginSuccess) onLoginSuccess(user);
         onClose();
-      }, 350);
+      }, 320);
     }
   };
 
@@ -214,30 +222,27 @@ export function AuthModal({
     <div
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.75)',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.78)',
         backdropFilter: 'blur(8px)',
         zIndex: 2000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px',
-        animation: 'fadeIn 0.2s ease-out'
+        padding: '16px'
       }}
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         style={{
           width: '100%',
-          maxWidth: '440px',
-          background: 'linear-gradient(145deg, #1e293b 0%, #0f172a 100%)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          borderRadius: '16px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05)',
-          overflow: 'hidden',
+          maxWidth: '430px',
+          backgroundColor: '#0F172A',
+          border: '1px solid var(--border-strong)',
+          borderRadius: '14px',
+          boxShadow: 'var(--shadow-lg)',
           position: 'relative',
           display: 'flex',
           flexDirection: 'column'
@@ -248,90 +253,67 @@ export function AuthModal({
         <button
           type="button"
           onClick={onClose}
+          aria-label="Cerrar ventana"
           style={{
             position: 'absolute',
             top: '16px',
             right: '16px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: 'none',
-            borderRadius: '50%',
+            background: '#1E293B',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '8px',
             width: '32px',
             height: '32px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#94a3b8',
-            cursor: 'pointer',
-            zIndex: 10,
-            transition: 'background 0.2s ease'
+            color: '#CBD5E1',
+            cursor: 'pointer'
           }}
-          title="Cerrar"
         >
-          <X size={18} />
+          <X size={17} />
         </button>
 
-        {/* VISTA 1: AVISO CONTEXTUAL (PROMPT) */}
         {mode === 'prompt' ? (
-          <div style={{ padding: '28px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '14px',
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.35) 100%)',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '24px'
-              }}
-            >
-              🔒
-            </div>
+          <div style={{ padding: '26px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <BrandLogo size={52} alt="Emblema Tuxtla Rutas" />
 
             <div>
               <h2
                 style={{
-                  fontSize: '17px',
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '18px',
                   fontWeight: 800,
-                  color: '#ffffff',
+                  color: '#FFFFFF',
                   margin: '0 0 8px 0',
-                  lineHeight: '1.4'
+                  lineHeight: 1.3
                 }}
               >
-                {promptMessage || 'Acción requerida'}
+                {promptMessage || 'Inicia sesión para continuar'}
               </h2>
-              <p
-                style={{
-                  fontSize: '13px',
-                  color: '#94a3b8',
-                  lineHeight: '1.5',
-                  margin: 0
-                }}
-              >
-                Para guardar tus rutas favoritas, personalizar Casa/Escuela/Trabajo en el mapa o enviar reportes viales, accede a tu cuenta.
+              <p style={{ fontSize: '13px', color: '#CBD5E1', lineHeight: 1.5, margin: 0 }}>
+                Guarda tus rutas favoritas, fija Casa, Escuela o Trabajo en el mapa y envía reportes viales.
               </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
               <button
                 type="button"
                 id="btn-prompt-login"
                 onClick={() => setMode('login')}
                 style={{
-                  padding: '12px 16px',
-                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                  border: 'none',
+                  padding: '11px 16px',
+                  background: '#F59E0B',
+                  border: '1px solid #FDE68A',
                   borderRadius: '10px',
-                  color: '#ffffff',
+                  color: '#0F172A',
                   fontSize: '14px',
                   fontWeight: 700,
+                  fontFamily: 'inherit',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)'
+                  gap: '8px'
                 }}
               >
                 <LogIn size={16} />
@@ -343,13 +325,14 @@ export function AuthModal({
                 id="btn-prompt-register"
                 onClick={() => setMode('register')}
                 style={{
-                  padding: '12px 16px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                  padding: '11px 16px',
+                  background: '#1E293B',
+                  border: '1px solid var(--border-strong)',
                   borderRadius: '10px',
-                  color: '#f8fafc',
+                  color: '#F8FAFC',
                   fontSize: '14px',
                   fontWeight: 700,
+                  fontFamily: 'inherit',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -358,7 +341,7 @@ export function AuthModal({
                 }}
               >
                 <UserPlus size={16} />
-                <span>Registrarse</span>
+                <span>Crear cuenta</span>
               </button>
 
               <button
@@ -367,11 +350,11 @@ export function AuthModal({
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: '#94a3b8',
+                  color: '#A8B8CD',
                   fontSize: '12px',
+                  fontFamily: 'inherit',
                   cursor: 'pointer',
-                  padding: '6px',
-                  marginTop: '4px'
+                  padding: '6px'
                 }}
               >
                 Continuar explorando como visitante
@@ -379,85 +362,69 @@ export function AuthModal({
             </div>
           </div>
         ) : (
-          /* VISTA 2: FORMULARIO DE INICIAR SESIÓN / REGISTRO */
           <div style={{ padding: '24px' }}>
-            {/* Cabecera */}
-            <div style={{ marginBottom: '18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <div
+            {/* Cabecera con BrandLogo */}
+            <div style={{ marginBottom: '16px', paddingRight: '36px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                <BrandLogo size={36} alt="Logo Tuxtla Rutas" />
+                <h2
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #059669 0%, #2563eb 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '18px',
+                    fontWeight: 800,
+                    color: '#F8FAFC',
+                    margin: 0
                   }}
                 >
-                  <Bus size={17} color="#ffffff" />
-                </div>
-                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
                   {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
                 </h2>
               </div>
-              <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+              <p style={{ fontSize: '12px', color: '#A8B8CD', margin: 0 }}>
                 {mode === 'login'
-                  ? 'Accede a tus rutas favoritas y configuración personal'
-                  : 'Regístrate para guardar Casa, Escuela y rutas en Tuxtla'}
+                  ? 'Accede a tus rutas favoritas y puntos frecuentes en Tuxtla'
+                  : 'Regístrate para personalizar tus recorridos diarios'}
               </p>
             </div>
 
-            {/* Banner si viene de un aviso contextual */}
             {promptMessage && (
               <div
                 style={{
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  borderRadius: '10px',
-                  padding: '10px 12px',
-                  marginBottom: '16px',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  paddingBottom: '10px',
+                  marginBottom: '12px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px'
+                  gap: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#FDE68A'
                 }}
               >
-                <span style={{ fontSize: '16px' }}>📍</span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#fde047' }}>
-                  {promptMessage}
-                </span>
+                <MapPin size={14} color="#F59E0B" />
+                <span>{promptMessage}</span>
               </div>
             )}
 
-            {/* Mensajes de error o éxito */}
             {errorMessage && (
               <div
                 style={{
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  marginBottom: '14px',
-                  color: '#fca5a5',
+                  color: '#FCA5A5',
                   fontSize: '12px',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  marginBottom: '12px'
                 }}
               >
-                ⚠️ {errorMessage}
+                {errorMessage}
               </div>
             )}
 
             {successMessage && (
               <div
                 style={{
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  border: '1px solid rgba(16, 185, 129, 0.4)',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  marginBottom: '14px',
-                  color: '#6ee7b7',
+                  color: '#6EE7B7',
                   fontSize: '12px',
                   fontWeight: 600,
+                  marginBottom: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px'
@@ -468,15 +435,12 @@ export function AuthModal({
               </div>
             )}
 
-            {/* Pestañas de Cambio Rápido */}
+            {/* Pestañas limpias con border-bottom (cero nested-cards) */}
             <div
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
-                gap: '4px',
-                background: 'rgba(15, 23, 42, 0.6)',
-                padding: '4px',
-                borderRadius: '10px',
+                borderBottom: '1px solid var(--border-subtle)',
                 marginBottom: '16px'
               }}
             >
@@ -488,14 +452,14 @@ export function AuthModal({
                 }}
                 style={{
                   padding: '8px',
-                  background: mode === 'login' ? 'rgba(37, 99, 235, 0.3)' : 'transparent',
-                  border: mode === 'login' ? '1px solid #3b82f6' : '1px solid transparent',
-                  borderRadius: '8px',
-                  color: mode === 'login' ? '#ffffff' : '#94a3b8',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: mode === 'login' ? '2px solid #F59E0B' : '2px solid transparent',
+                  color: mode === 'login' ? '#FFFFFF' : '#A8B8CD',
                   fontSize: '12px',
                   fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
+                  fontFamily: 'inherit',
+                  cursor: 'pointer'
                 }}
               >
                 Iniciar Sesión
@@ -509,29 +473,28 @@ export function AuthModal({
                 }}
                 style={{
                   padding: '8px',
-                  background: mode === 'register' ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
-                  border: mode === 'register' ? '1px solid #10b981' : '1px solid transparent',
-                  borderRadius: '8px',
-                  color: mode === 'register' ? '#ffffff' : '#94a3b8',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: mode === 'register' ? '2px solid #10B981' : '2px solid transparent',
+                  color: mode === 'register' ? '#FFFFFF' : '#A8B8CD',
                   fontSize: '12px',
                   fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
+                  fontFamily: 'inherit',
+                  cursor: 'pointer'
                 }}
               >
                 Registrarse
               </button>
             </div>
 
-            {/* Formulario */}
             <form onSubmit={mode === 'login' ? handleLogin : handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {mode === 'register' && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#cbd5e1', marginBottom: '5px' }}>
+                  <label htmlFor="auth-register-name" style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#CBD5E1', marginBottom: '5px' }}>
                     Nombre completo
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <User size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+                    <User size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#A8B8CD' }} />
                     <input
                       type="text"
                       id="auth-register-name"
@@ -540,11 +503,11 @@ export function AuthModal({
                       onChange={(e) => setName(e.target.value)}
                       style={{
                         width: '100%',
-                        padding: '10px 12px 10px 36px',
-                        background: 'rgba(15, 23, 42, 0.7)',
+                        padding: '9px 12px 9px 36px',
+                        background: '#1E293B',
                         border: '1px solid var(--border-subtle)',
                         borderRadius: '8px',
-                        color: '#ffffff',
+                        color: '#FFFFFF',
                         fontSize: '13px',
                         outline: 'none',
                         fontFamily: 'inherit'
@@ -555,11 +518,11 @@ export function AuthModal({
               )}
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#cbd5e1', marginBottom: '5px' }}>
+                <label htmlFor={mode === 'login' ? 'auth-login-email' : 'auth-register-email'} style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#CBD5E1', marginBottom: '5px' }}>
                   Correo electrónico
                 </label>
                 <div style={{ position: 'relative' }}>
-                  <Mail size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+                  <Mail size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#A8B8CD' }} />
                   <input
                     type="email"
                     id={mode === 'login' ? 'auth-login-email' : 'auth-register-email'}
@@ -568,11 +531,11 @@ export function AuthModal({
                     onChange={(e) => setEmail(e.target.value)}
                     style={{
                       width: '100%',
-                      padding: '10px 12px 10px 36px',
-                      background: 'rgba(15, 23, 42, 0.7)',
+                      padding: '9px 12px 9px 36px',
+                      background: '#1E293B',
                       border: '1px solid var(--border-subtle)',
                       borderRadius: '8px',
-                      color: '#ffffff',
+                      color: '#FFFFFF',
                       fontSize: '13px',
                       outline: 'none',
                       fontFamily: 'inherit'
@@ -582,11 +545,11 @@ export function AuthModal({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#cbd5e1', marginBottom: '5px' }}>
+                <label htmlFor={mode === 'login' ? 'auth-login-password' : 'auth-register-password'} style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#CBD5E1', marginBottom: '5px' }}>
                   Contraseña
                 </label>
                 <div style={{ position: 'relative' }}>
-                  <Lock size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+                  <Lock size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#A8B8CD' }} />
                   <input
                     type="password"
                     id={mode === 'login' ? 'auth-login-password' : 'auth-register-password'}
@@ -595,11 +558,11 @@ export function AuthModal({
                     onChange={(e) => setPassword(e.target.value)}
                     style={{
                       width: '100%',
-                      padding: '10px 12px 10px 36px',
-                      background: 'rgba(15, 23, 42, 0.7)',
+                      padding: '9px 12px 9px 36px',
+                      background: '#1E293B',
                       border: '1px solid var(--border-subtle)',
                       borderRadius: '8px',
-                      color: '#ffffff',
+                      color: '#FFFFFF',
                       fontSize: '13px',
                       outline: 'none',
                       fontFamily: 'inherit'
@@ -608,19 +571,19 @@ export function AuthModal({
                 </div>
               </div>
 
-              {/* Selector de Perfil para Registro (Pasajero, Soporte, Admin) */}
               {mode === 'register' && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
-                    Tipo de perfil (para pruebas del proyecto):
-                  </label>
+                  <span style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#CBD5E1', marginBottom: '6px' }}>
+                    Tipo de perfil:
+                  </span>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                     {[
-                      { id: 'USER', label: 'Pasajero', icon: '👤', desc: 'Rutas y viajes' },
-                      { id: 'SUPPORT', label: 'Soporte', icon: '🎧', desc: 'Alertas viales' },
-                      { id: 'ADMIN', label: 'Admin', icon: '🛡️', desc: 'Control de flota' }
+                      { id: 'USER', label: 'Pasajero', Icon: User },
+                      { id: 'SUPPORT', label: 'Soporte', Icon: Headphones },
+                      { id: 'ADMIN', label: 'Admin', Icon: Shield }
                     ].map((p) => {
                       const isSel = selectedRole === p.id;
+                      const RoleIcon = p.Icon;
                       return (
                         <button
                           key={p.id}
@@ -628,21 +591,21 @@ export function AuthModal({
                           onClick={() => setSelectedRole(p.id)}
                           style={{
                             padding: '8px 4px',
-                            background: isSel ? 'rgba(37, 99, 235, 0.25)' : 'rgba(15, 23, 42, 0.5)',
-                            border: isSel ? '1.5px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
+                            background: isSel ? 'rgba(2, 132, 199, 0.24)' : '#1E293B',
+                            border: isSel ? '1px solid #38BDF8' : '1px solid var(--border-subtle)',
                             borderRadius: '8px',
-                            color: isSel ? '#ffffff' : '#94a3b8',
+                            color: isSel ? '#FFFFFF' : '#CBD5E1',
                             fontSize: '12px',
                             fontWeight: isSel ? 700 : 500,
+                            fontFamily: 'inherit',
                             cursor: 'pointer',
                             display: 'flex',
-                            flexDirection: 'column',
                             alignItems: 'center',
-                            gap: '2px',
-                            transition: 'all 0.2s ease'
+                            justifyContent: 'center',
+                            gap: '5px'
                           }}
                         >
-                          <span style={{ fontSize: '14px' }}>{p.icon}</span>
+                          <RoleIcon size={13} />
                           <span>{p.label}</span>
                         </button>
                       );
@@ -651,27 +614,24 @@ export function AuthModal({
                 </div>
               )}
 
-              {/* Botón Principal de Envío */}
               <button
                 type="submit"
                 id={mode === 'login' ? 'auth-login-submit' : 'auth-register-submit'}
                 style={{
-                  marginTop: '8px',
-                  padding: '11px',
-                  background: mode === 'login'
-                    ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)'
-                    : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                  border: 'none',
+                  marginTop: '6px',
+                  padding: '10px',
+                  background: mode === 'login' ? '#F59E0B' : '#065F46',
+                  border: mode === 'login' ? '1px solid #FDE68A' : '1px solid #10B981',
                   borderRadius: '8px',
-                  color: '#ffffff',
+                  color: mode === 'login' ? '#0F172A' : '#FFFFFF',
                   fontSize: '13px',
                   fontWeight: 700,
+                  fontFamily: 'inherit',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                  gap: '6px'
                 }}
               >
                 {mode === 'login' ? <LogIn size={15} /> : <UserPlus size={15} />}
@@ -679,11 +639,10 @@ export function AuthModal({
               </button>
             </form>
 
-            {/* Accesos rápidos de prueba (Demo) */}
             {mode === 'login' && (
-              <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
-                  ⚡ Acceso rápido para pruebas de evaluación:
+              <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '12px', color: '#CBD5E1', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                  Acceso rápido de evaluación:
                 </span>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                   <button
@@ -691,16 +650,17 @@ export function AuthModal({
                     onClick={() => handleQuickDemoLogin('pasajero@tuxtla.mx')}
                     style={{
                       padding: '6px 4px',
-                      background: 'rgba(16, 185, 129, 0.12)',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      background: 'rgba(13, 148, 104, 0.18)',
+                      border: '1px solid rgba(16, 185, 129, 0.42)',
                       borderRadius: '6px',
-                      color: '#6ee7b7',
+                      color: '#6EE7B7',
                       fontSize: '12px',
                       fontWeight: 600,
+                      fontFamily: 'inherit',
                       cursor: 'pointer'
                     }}
                   >
-                    👤 Pasajero
+                    Pasajero
                   </button>
 
                   <button
@@ -708,16 +668,17 @@ export function AuthModal({
                     onClick={() => handleQuickDemoLogin('soporte@tuxtla.mx')}
                     style={{
                       padding: '6px 4px',
-                      background: 'rgba(37, 99, 235, 0.12)',
-                      border: '1px solid rgba(37, 99, 235, 0.3)',
+                      background: 'rgba(2, 132, 199, 0.18)',
+                      border: '1px solid rgba(56, 189, 248, 0.42)',
                       borderRadius: '6px',
-                      color: '#93c5fd',
+                      color: '#7DD3FC',
                       fontSize: '12px',
                       fontWeight: 600,
+                      fontFamily: 'inherit',
                       cursor: 'pointer'
                     }}
                   >
-                    🎧 Soporte
+                    Soporte
                   </button>
 
                   <button
@@ -725,16 +686,17 @@ export function AuthModal({
                     onClick={() => handleQuickDemoLogin('admin@tuxtla.mx')}
                     style={{
                       padding: '6px 4px',
-                      background: 'rgba(2, 132, 199, 0.12)',
-                      border: '1px solid rgba(2, 132, 199, 0.3)',
+                      background: 'rgba(245, 158, 11, 0.18)',
+                      border: '1px solid rgba(245, 158, 11, 0.45)',
                       borderRadius: '6px',
-                      color: '#7dd3fc',
+                      color: '#FDE68A',
                       fontSize: '12px',
                       fontWeight: 600,
+                      fontFamily: 'inherit',
                       cursor: 'pointer'
                     }}
                   >
-                    🛡️ Admin
+                    Admin
                   </button>
                 </div>
               </div>

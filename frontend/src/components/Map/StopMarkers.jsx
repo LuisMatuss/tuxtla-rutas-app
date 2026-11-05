@@ -157,13 +157,13 @@ export function StopMarkers({
                   style={{
                     background: 'rgba(15, 23, 42, 0.96)',
                     backdropFilter: 'blur(16px)',
-                    border: '1.5px solid #10b981',
+                    border: '1.5px solid #10B981',
                     borderRadius: '12px',
                     padding: '10px 12px',
-                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.65), 0 0 15px rgba(16, 185, 129, 0.25)',
+                    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.58)',
                     minWidth: '220px',
                     maxWidth: '300px',
-                    color: '#f8fafc',
+                    color: '#F8FAFC',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '8px',
@@ -179,14 +179,13 @@ export function StopMarkers({
                           width: '8px',
                           height: '8px',
                           borderRadius: '50%',
-                          background: '#10b981',
-                          boxShadow: '0 0 8px #10b981'
+                          background: '#10B981'
                         }}
                       />
-                      <strong style={{ fontSize: '13px', fontWeight: 800, color: '#f8fafc', letterSpacing: '0.02em' }}>
+                      <strong style={{ fontSize: '13px', fontWeight: 800, color: '#F8FAFC', letterSpacing: '0.02em' }}>
                         Rutas
                       </strong>
-                      <span style={{ fontSize: '12px', color: '#6ee7b7', fontWeight: 700 }}>
+                      <span style={{ fontSize: '12px', color: '#6EE7B7', fontWeight: 700 }}>
                         ({passingRoutes.length})
                       </span>
                     </div>
@@ -203,7 +202,7 @@ export function StopMarkers({
                         background: 'rgba(255, 255, 255, 0.08)',
                         border: '1px solid rgba(255, 255, 255, 0.15)',
                         borderRadius: '6px',
-                        color: '#f8fafc',
+                        color: '#F8FAFC',
                         width: '22px',
                         height: '22px',
                         display: 'flex',
@@ -236,7 +235,8 @@ export function StopMarkers({
                       passingRoutes.map((r) => {
                         const badge = getRouteShortBadge(r.name);
                         const isSelected = selectedRouteId === r.id;
-                        const routeColor = r.color || '#10b981';
+                        const rawColor = r.color || '#0D9468';
+                        const routeColor = rawColor.toUpperCase() === '#4F46E5' ? '#0284C7' : rawColor;
 
                         return (
                           <button
@@ -256,21 +256,19 @@ export function StopMarkers({
                               height: '32px',
                               padding: '0 8px',
                               borderRadius: '8px',
-                              border: isSelected ? '2px solid #ffffff' : '1px solid rgba(255, 255, 255, 0.25)',
+                              border: isSelected ? '2px solid #FFFFFF' : '1px solid rgba(255, 255, 255, 0.25)',
                               background: routeColor,
-                              color: '#ffffff',
+                              color: '#FFFFFF',
                               fontSize: '13px',
                               fontWeight: 800,
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              boxShadow: isSelected
-                                ? '0 0 12px rgba(255, 255, 255, 0.6)'
-                                : '0 2px 6px rgba(0, 0, 0, 0.4)',
-                              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.42)',
+                              transition: 'transform 0.15s ease'
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
+                            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.06)')}
                             onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
                           >
                             {badge}
@@ -278,7 +276,7 @@ export function StopMarkers({
                         );
                       })
                     ) : (
-                      <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', padding: '4px 0' }}>
+                      <span style={{ fontSize: '12px', color: '#CBD5E1', fontStyle: 'italic', padding: '4px 0' }}>
                         Sin rutas directas en 600m
                       </span>
                     )}
@@ -295,11 +293,11 @@ export function StopMarkers({
                       }
                     }}
                     style={{
-                      background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                      border: 'none',
+                      background: '#065F46',
+                      border: '1px solid #10B981',
                       borderRadius: '8px',
                       padding: '7px 10px',
-                      color: '#ffffff',
+                      color: '#FFFFFF',
                       fontSize: '12px',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -307,8 +305,8 @@ export function StopMarkers({
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: '6px',
-                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
-                      transition: 'all 0.15s ease'
+                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.38)',
+                      transition: 'background-color 0.15s ease'
                     }}
                   >
                     <span>🚶</span>
@@ -340,7 +338,8 @@ export function StopMarkers({
         }
 
         const route = routeMap.get(stop.routeId);
-        const routeColor = stop.routeColor || route?.color || '#059669';
+        const rawStopColor = stop.routeColor || route?.color || '#0D9468';
+        const routeColor = rawStopColor.toUpperCase() === '#4F46E5' ? '#0284C7' : rawStopColor;
         const routeName = stop.routeName || route?.name || 'Transporte Colectivo';
         const isRouteSelected = Boolean(selectedRouteId && stop.routeId === selectedRouteId);
         const isActive = activeStop?.id === stop.id;

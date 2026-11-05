@@ -54,7 +54,8 @@ export function RouteLayer({
     <>
       {sortedRoutes.map((route) => {
         const isSelected = selectedRouteId === route.id;
-        const color = route.color || '#2563EB';
+        const rawColor = route.color || '#0284C7';
+        const color = rawColor.toUpperCase() === '#4F46E5' ? '#0284C7' : rawColor;
 
         // 1. Trazado de IDA (outbound)
         const outboundRaw = route.outboundGeometry?.coordinates || route.geometry?.coordinates || [];

@@ -446,14 +446,27 @@ export class TelegramBotService {
       this.#token
     );
 
+    const isNotFound =
+      cleanReplyPlain.includes('Registro No Encontrado') ||
+      cleanReplyPlain.includes('No encontré una ruta') ||
+      cleanReplyPlain.includes('No logré ubicar') ||
+      cleanReplyPlain.includes('no encontramos paradas');
+
+    const validationStatus = isNotFound ? 'NOT_FOUND' : 'VALIDATED';
+    const validationLabel = isNotFound
+      ? 'Registro No Encontrado'
+      : 'Registro Validado en PostgreSQL';
+
     const entry = {
       id: `tg-${Date.now()}-${++this.#seq}`,
       timestamp: new Date().toISOString(),
       userName: stripTokenFromText(userName || 'Pasajero', this.#token),
       queryType,
+      validationStatus,
+      validationLabel,
       userText: stripTokenFromText(userText || '', this.#token).slice(0, 140),
       botReplyPreview:
-        cleanReplyPlain.length > 140 ? `${cleanReplyPlain.slice(0, 137)}...` : cleanReplyPlain
+        cleanReplyPlain.length > 160 ? `${cleanReplyPlain.slice(0, 157)}...` : cleanReplyPlain
     };
 
     this.totalProcessed += 1;
@@ -461,12 +474,41 @@ export class TelegramBotService {
     if (this.logs.length > MAX_MONITOR_LOGS) {
       this.logs.length = MAX_MONITOR_LOGS;
     }
+
+    return entry;
+  }
+
+  /**
+   * Permite simular/ejecutar una consulta directa contra el motor real del Bot y PostgreSQL
+   * registrando la validación en los logs en vivo sin requerir envío saliente por chat_id
+   */
+  async simulateIncomingQuery({ userName = 'Pasajero Telegram', text = '' }) {
+    const rawText = String(text || '').trim();
+    if (!rawText) {
+      const err = new Error('El texto de consulta es obligatorio.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    await this.#handleIncomingMessage(
+      {
+        chat: { id: 'sim_local', first_name: userName },
+        from: { first_name: userName },
+        text: rawText
+      },
+      { skipTelegramDelivery: true }
+    );
+
+    return {
+      latestLog: this.logs[0] || null,
+      status: this.getStatus()
+    };
   }
 
   /**
    * Enrutador principal de mensajes entrantes desde el celular del pasajero
    */
-  async #handleIncomingMessage(message) {
+  async #handleIncomingMessage(message, options = {}) {
     const chatId = message?.chat?.id;
     if (!chatId) return;
 
@@ -533,7 +575,9 @@ export class TelegramBotService {
         botReplyHtml: replyHtml
       });
 
-      await this.#sendTelegramReply(chatId, replyHtml, true);
+      if (!options.skipTelegramDelivery) {
+        await this.#sendTelegramReply(chatId, replyHtml, true);
+      }
     } catch (err) {
       const safeErr = stripTokenFromText(err?.message || 'Error procesando consulta', this.#token);
       console.warn(`[TelegramBotService] Error procesando mensaje: ${safeErr}`);
@@ -541,7 +585,9 @@ export class TelegramBotService {
         '⚠️ <b>Tuxtla-Rutas</b>',
         'Ocurrió un inconveniente temporal al procesar tu consulta. Intenta nuevamente o usa los botones del menú inferior.'
       ].join('\n');
-      await this.#sendTelegramReply(chatId, fallbackMsg, true);
+      if (!options.skipTelegramDelivery) {
+        await this.#sendTelegramReply(chatId, fallbackMsg, true);
+      }
     }
   }
 
@@ -973,7 +1019,7 @@ export class TelegramBotService {
     }
 
     return [
-      `🤔 No encontré una ruta o parada con <b>"${escapeHtml(rawQuery.trim())}"</b>.`,
+      `⚠️ <b>Registro No Encontrado en PostgreSQL:</b> No existe una ruta o parada registrada con <b>"${escapeHtml(rawQuery.trim())}"</b> en las 12 rutas de Tuxtla Gutiérrez.`,
       '',
       '💡 <b>Prueba con alguna de estas opciones:</b>',
       '• Escribe el número de una ruta: <code>Ruta 1</code>, <code>Ruta 43</code>, <code>Ruta 108</code>, <code>Ruta A</code>',

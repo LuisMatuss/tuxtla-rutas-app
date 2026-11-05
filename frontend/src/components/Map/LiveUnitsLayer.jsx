@@ -10,7 +10,8 @@ import L from 'leaflet';
 function createBusIcon(unit) {
   const isBoarding = unit.status === 'BOARDING';
   const isVuelta = unit.directionType === 'VUELTA';
-  const routeColor = unit.routeColor || '#2563EB';
+  const rawColor = unit.routeColor || '#0284C7';
+  const routeColor = rawColor.toUpperCase() === '#4F46E5' ? '#0284C7' : rawColor;
   const mainColor = isBoarding ? '#f59e0b' : routeColor;
   const dwellSec = Math.ceil(unit.dwellRemainingSec || 15);
   const arrow = isVuelta ? '↩' : '➔';
