@@ -133,8 +133,8 @@ export function useGeoRoutes() {
 
   // 2 rutas por defecto activas en el mapa al abrir para una vista limpia (Ruta 1 y Ruta 43)
   const [visibleRouteIds, setVisibleRouteIds] = useState([
-    'a0000001-0000-0000-0000-000000000001',
-    'a0000003-0000-0000-0000-000000000003'
+    'r-001',
+    'r-003'
   ]);
 
   // Filtro de sentido de circulación: 'ALL' (Ida y Vuelta), 'IDA' (Solo Ida), 'VUELTA' (Solo Vuelta)
@@ -168,8 +168,8 @@ export function useGeoRoutes() {
       setVisibleRouteIds(favoriteIds);
     } else {
       setVisibleRouteIds([
-        'a0000001-0000-0000-0000-000000000001',
-        'a0000003-0000-0000-0000-000000000003'
+        'r-001',
+        'r-003'
       ]);
     }
   }, []);

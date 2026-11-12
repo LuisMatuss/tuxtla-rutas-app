@@ -20,18 +20,18 @@ const TELEGRAM_BOT_URL = 'https://t.me/TuxtlaRutasUnach_Bot';
 
 // Catálogo oficial de las 12 rutas troncales para acceso en 1 clic (cero violetas/índigos)
 const OFFICIAL_TWELVE_ROUTES = [
-  { id: 'a0000001-0000-0000-0000-000000000001', code: 'R-1', shortDest: 'UNACH / Terán', color: '#0284C7' },
-  { id: 'a0000002-0000-0000-0000-000000000002', code: 'R-A', shortDest: 'Patria Nueva', color: '#EF4444' },
-  { id: 'a0000003-0000-0000-0000-000000000003', code: 'R-43', shortDest: 'Libramiento Sur', color: '#F59E0B' },
-  { id: 'a0000004-0000-0000-0000-000000000004', code: 'R-90', shortDest: 'Libramiento Norte', color: '#EA580C' },
-  { id: 'a0000005-0000-0000-0000-000000000005', code: 'R-58', shortDest: 'UNACH / San Roque', color: '#10B981' },
-  { id: 'a0000006-0000-0000-0000-000000000006', code: 'R-52', shortDest: 'Caña Hueca', color: '#F97316' },
-  { id: 'a0000007-0000-0000-0000-000000000007', code: 'R-30', shortDest: 'Las Granjas', color: '#38BDF8' },
-  { id: 'a0000008-0000-0000-0000-000000000008', code: 'R-73', shortDest: 'Ing. UNACH', color: '#0D9468' },
-  { id: 'a0000009-0000-0000-0000-000000000009', code: 'R-108', shortDest: 'Centro / ISSSTE', color: '#FBBF24' },
-  { id: 'a0000010-0000-0000-0000-000000000010', code: 'R-51', shortDest: 'Juan Crispín', color: '#EF4444' },
-  { id: 'a0000011-0000-0000-0000-000000000011', code: 'R-115', shortDest: 'Real del Bosque', color: '#F59E0B' },
-  { id: 'a0000012-0000-0000-0000-000000000012', code: 'R-22', shortDest: 'San José Terán', color: '#29ABE2' }
+  { id: 'r-001', code: 'R-1', shortDest: 'UNACH / Terán', color: '#0284C7' },
+  { id: 'r-002', code: 'R-A', shortDest: 'Patria Nueva', color: '#EF4444' },
+  { id: 'r-003', code: 'R-43', shortDest: 'Libramiento Sur', color: '#F59E0B' },
+  { id: 'r-004', code: 'R-90', shortDest: 'Libramiento Norte', color: '#EA580C' },
+  { id: 'r-005', code: 'R-58', shortDest: 'UNACH / San Roque', color: '#10B981' },
+  { id: 'r-006', code: 'R-52', shortDest: 'Caña Hueca', color: '#F97316' },
+  { id: 'r-007', code: 'R-30', shortDest: 'Las Granjas', color: '#38BDF8' },
+  { id: 'r-008', code: 'R-73', shortDest: 'Ing. UNACH', color: '#0D9468' },
+  { id: 'r-009', code: 'R-108', shortDest: 'Centro / ISSSTE', color: '#FBBF24' },
+  { id: 'r-010', code: 'R-51', shortDest: 'Juan Crispín', color: '#EF4444' },
+  { id: 'r-011', code: 'R-115', shortDest: 'Real del Bosque', color: '#F59E0B' },
+  { id: 'r-012', code: 'R-22', shortDest: 'San José Terán', color: '#29ABE2' }
 ];
 
 // Destinos frecuentes de Tuxtla Gutiérrez para respuesta inmediata en el buscador del Hero

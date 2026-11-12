@@ -1,4 +1,5 @@
 import { TUXTLA_ROUTES_SEED } from '../../db/tuxtlaRoutesSeed.js';
+import { pool } from '../../db/postgresPool.js';
 
 export class RouteController {
   /**
@@ -158,35 +159,63 @@ export class RouteController {
 
   /**
    * PATCH /api/routes/:id/config
-   * Permite al rol Admin actualizar frecuencia, estado operativo o color de la ruta
+   * Permite al rol Admin actualizar frecuencia, estado operativo o color de la ruta en PostgreSQL
    */
   updateRouteConfig = async (req, res, next) => {
     try {
       const { id } = req.params;
       const { frequencyMinutes, status, color } = req.body || {};
 
-      const seedRoute = TUXTLA_ROUTES_SEED.find((r) => r.id === id);
-      if (!seedRoute) {
+      const idxMatch = String(id).match(/^r-0*(\d+)$/i);
+      const seedIdx = idxMatch ? Number(idxMatch[1]) - 1 : -1;
+      const seedRoute =
+        (seedIdx >= 0 && seedIdx < TUXTLA_ROUTES_SEED.length
+          ? TUXTLA_ROUTES_SEED[seedIdx]
+          : null) || TUXTLA_ROUTES_SEED.find((r) => r.id === id);
+
+      if (seedRoute) {
+        if (frequencyMinutes !== undefined) {
+          seedRoute.scheduleInfo.frequencyMinutes = Number(frequencyMinutes);
+        }
+        if (status !== undefined) {
+          seedRoute.scheduleInfo.status = status;
+        }
+        if (color !== undefined) {
+          seedRoute.color = color;
+        }
+      }
+
+      const updateResult = await pool.query(
+        `
+          UPDATE routes
+          SET
+            frequency_minutes = COALESCE($2, frequency_minutes),
+            status = COALESCE($3, status),
+            color = COALESCE($4, color)
+          WHERE id = $1
+          RETURNING *;
+        `,
+        [
+          id,
+          frequencyMinutes !== undefined ? Number(frequencyMinutes) : null,
+          status !== undefined ? status : null,
+          color !== undefined ? color : null
+        ]
+      );
+
+      if (updateResult.rows.length === 0 && !seedRoute) {
         return res.status(404).json({
           success: false,
           error: { message: `Ruta con ID ${id} no encontrada.` }
         });
       }
 
-      if (frequencyMinutes !== undefined) {
-        seedRoute.scheduleInfo.frequencyMinutes = Number(frequencyMinutes);
-      }
-      if (status !== undefined) {
-        seedRoute.scheduleInfo.status = status; // 'OPERATIONAL' | 'DELAYED' | 'SUSPENDED'
-      }
-      if (color !== undefined) {
-        seedRoute.color = color;
-      }
+      const updatedRoute = await this.findRoutesUseCase.executeById(id);
 
       res.status(200).json({
         success: true,
-        message: `Configuración de ruta "${seedRoute.name}" actualizada exitosamente.`,
-        data: seedRoute
+        message: `Configuración de ruta "${updatedRoute.name}" actualizada exitosamente en PostgreSQL.`,
+        data: updatedRoute
       });
     } catch (error) {
       next(error);

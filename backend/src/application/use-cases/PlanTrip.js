@@ -92,6 +92,7 @@ export class PlanTrip {
             routeId: route.id,
             routeName: route.name,
             routeColor: route.color,
+            routeCoordinates: route.geometry?.coordinates || [],
             originStop: {
               id: bestOriginStop.id,
               name: bestOriginStop.name,
@@ -202,6 +203,7 @@ export class PlanTrip {
                 id: routeA.id,
                 name: routeA.name,
                 color: routeA.color,
+                coordinates: routeA.geometry?.coordinates || [],
                 originStop: {
                   id: bestOriginStopA.id,
                   name: bestOriginStopA.name,
@@ -228,6 +230,7 @@ export class PlanTrip {
                 id: routeB.id,
                 name: routeB.name,
                 color: routeB.color,
+                coordinates: routeB.geometry?.coordinates || [],
                 transferStop: {
                   id: stopB.id,
                   name: stopB.name,

@@ -1,6 +1,6 @@
 // Componente Modal: Reporte Ciudadano de Incidencias en Ruta / Parada (Paleta Colectivo Tuxtla)
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Send, AlertTriangle, MapPin, CheckCircle2 } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
 
@@ -24,6 +24,12 @@ export function ReportIncidentModal({
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!routeId && routes.length > 0) {
+      setRouteId(routes[0].id);
+    }
+  }, [routes, routeId]);
 
   if (!isOpen) return null;
 

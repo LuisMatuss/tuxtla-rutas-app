@@ -23,7 +23,14 @@ export class Route {
     stops = [],
     firstRun = '05:30',
     lastRun = '22:00',
-    frequencyMinutes = 8
+    frequencyMinutes = 8,
+    status = 'OPERATIONAL',
+    outboundGeometry = null,
+    inboundGeometry = null,
+    returnStops = null,
+    outboundStopIndices = null,
+    inboundStopIndices = null,
+    stopVertexIndices = null
   }) {
     if (!name || typeof name !== 'string') {
       throw new Error('El nombre de la ruta es obligatorio.');
@@ -38,6 +45,13 @@ export class Route {
     this.firstRun = firstRun;
     this.lastRun = lastRun;
     this.frequencyMinutes = Number(frequencyMinutes) || 8;
+    this.status = status || 'OPERATIONAL';
+    this.outboundGeometry = outboundGeometry;
+    this.inboundGeometry = inboundGeometry;
+    this.returnStops = returnStops;
+    this.outboundStopIndices = outboundStopIndices;
+    this.inboundStopIndices = inboundStopIndices;
+    this.stopVertexIndices = stopVertexIndices;
   }
 
   /**
@@ -60,7 +74,7 @@ export class Route {
       lastRun: this.lastRun,
       frequencyMinutes: this.frequencyMinutes,
       estimatedWaitMinutes,
-      status: 'OPERATIONAL'
+      status: this.status || 'OPERATIONAL'
     };
   }
 
@@ -74,7 +88,13 @@ export class Route {
       description: this.description,
       color: this.color,
       geometry: this.geometry,
+      ...(this.outboundGeometry && { outboundGeometry: this.outboundGeometry }),
+      ...(this.inboundGeometry && { inboundGeometry: this.inboundGeometry }),
       stops: this.stops.map(stop => (typeof stop.toJSON === 'function' ? stop.toJSON() : stop)),
+      ...(Array.isArray(this.returnStops) && { returnStops: this.returnStops }),
+      ...(Array.isArray(this.outboundStopIndices) && { outboundStopIndices: this.outboundStopIndices }),
+      ...(Array.isArray(this.inboundStopIndices) && { inboundStopIndices: this.inboundStopIndices }),
+      ...(Array.isArray(this.stopVertexIndices) && { stopVertexIndices: this.stopVertexIndices }),
       scheduleInfo: this.scheduleInfo
     };
   }

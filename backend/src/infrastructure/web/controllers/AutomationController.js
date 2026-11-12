@@ -9,7 +9,7 @@ export function getRouteShortCode(route) {
   const name = route.name || '';
   if (name.includes('Ruta 108')) return 'R-108';
   if (name.includes('Ruta 115')) return 'R-115';
-  if (name.includes('Ruta 1 -') || name.includes('Ruta 1 ')) return 'R-01';
+  if (name === 'Ruta 1' || name.includes('Ruta 1 -') || name.includes('Ruta 1 ')) return 'R-01';
   if (name.includes('Ruta A')) return 'R-A';
   if (name.includes('Ruta 43')) return 'R-43';
   if (name.includes('Ruta 90')) return 'R-90';
@@ -40,8 +40,13 @@ export class AutomationController {
     // Almacén en memoria para telemetría GPS en tiempo real de unidades colectivas
     this.telemetryStore = new Map();
 
-    // Rutas indexadas por ID para resolución ultra-rápida de paradas
-    this.routesMap = new Map(TUXTLA_ROUTES_SEED.map((r) => [r.id, r]));
+    // Rutas indexadas con claves r-001..r-012 alineadas a PostgreSQL (tuxtla_rutas_db)
+    this.routesMap = new Map(
+      TUXTLA_ROUTES_SEED.map((r, idx) => {
+        const pgRouteId = `r-${String(idx + 1).padStart(3, '0')}`;
+        return [pgRouteId, { ...r, id: pgRouteId, legacyId: r.id }];
+      })
+    );
 
     // Inicializar estado cinemático de las 24 unidades activas (Ida y Vuelta para cada una de las 12 rutas)
     this.initKinematicUnits();

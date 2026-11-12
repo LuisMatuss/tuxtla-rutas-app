@@ -17,7 +17,7 @@ function createPointIcon(emoji, bgGradient, borderColor) {
         transform: rotate(-45deg);
         display: flex;
         align-items: center;
-        justifyContent: center;
+        justify-content: center;
         box-shadow: 0 4px 14px rgba(0,0,0,0.45);
       ">
         <span style="

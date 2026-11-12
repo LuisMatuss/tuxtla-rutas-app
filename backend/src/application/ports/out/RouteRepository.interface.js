@@ -40,4 +40,13 @@ export class RouteRepositoryInterface {
     const stops = await this.findNearestStops(coordinate, radiusMeters, 1);
     return stops.length > 0 ? stops[0] : null;
   }
+
+  /**
+   * Guarda o actualiza una ruta y sus paradas en la base de datos
+   * @param {import('../../../domain/entities/Route.js').Route|Object} route
+   * @returns {Promise<import('../../../domain/entities/Route.js').Route>}
+   */
+  async save(route) {
+    throw new Error('Method save() must be implemented.');
+  }
 }

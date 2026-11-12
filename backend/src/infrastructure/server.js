@@ -10,10 +10,11 @@ import { createRouteRouter, createStopsRouter, createTripsRouter } from './web/r
 import { createAutomationRouter } from './web/routes/automation.routes.js';
 import { createIncidentsRouter } from './web/routes/incident.routes.js';
 import { errorHandler } from './web/errorHandler.js';
+import { verifyDatabasePool } from './db/postgresPool.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env'), override: false });
 dotenv.config();
 
 const app = express();
@@ -51,10 +52,13 @@ app.use('/api/automation', createAutomationRouter());
 // Manejador centralizado de errores
 app.use(errorHandler);
 
+export let httpServer = null;
+
 // Arranque del servidor
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  httpServer = app.listen(PORT, async () => {
     console.log(`[Tuxtla-Rutas Backend] Servidor ejecutándose en http://localhost:${PORT}`);
+    await verifyDatabasePool();
   });
 }
 

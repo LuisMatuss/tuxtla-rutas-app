@@ -4,9 +4,15 @@
 import { randomUUID } from 'crypto';
 import { TUXTLA_ROUTES_SEED } from '../../db/tuxtlaRoutesSeed.js';
 
-const routesById = new Map(TUXTLA_ROUTES_SEED.map((r) => [r.id, r]));
+const routesById = new Map();
+TUXTLA_ROUTES_SEED.forEach((r, idx) => {
+  const pgId = `r-${String(idx + 1).padStart(3, '0')}`;
+  const normalized = { ...r, id: pgId };
+  routesById.set(pgId, normalized);
+  routesById.set(r.id, normalized);
+});
 
-// Semilla inicial en memoria con 2 incidentes reales de Tuxtla Gutiérrez
+// Semilla inicial en memoria con 2 incidentes reales de Tuxtla Gutiérrez alineados con PostgreSQL
 const incidentsStore = new Map([
   [
     'inc-001',
@@ -19,7 +25,7 @@ const incidentsStore = new Map([
       lat: 16.7554,
       lng: -93.1295,
       locationName: 'Av. Central y 11a Poniente',
-      routeId: 'a0000001-0000-0000-0000-000000000001',
+      routeId: 'r-001',
       routeName: 'Ruta 1 - Av. Central / UNACH / Terán',
       routeColor: '#2563EB',
       delayMinutes: 15,
@@ -39,7 +45,7 @@ const incidentsStore = new Map([
       lat: 16.7375,
       lng: -93.1180,
       locationName: 'Libramiento Sur y Crucero Villaflores',
-      routeId: 'a0000003-0000-0000-0000-000000000003',
+      routeId: 'r-003',
       routeName: 'Ruta 43 - Libramiento Sur (Poniente - Oriente)',
       routeColor: '#D97706',
       delayMinutes: 12,
