@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import { createRouteRouter, createStopsRouter, createTripsRouter } from './web/routes/route.routes.js';
 import { createAutomationRouter } from './web/routes/automation.routes.js';
 import { createIncidentsRouter } from './web/routes/incident.routes.js';
+import { createAuthRouter } from './web/routes/auth.routes.js';
 import { errorHandler } from './web/errorHandler.js';
 import { verifyDatabasePool } from './db/postgresPool.js';
 
@@ -47,6 +48,7 @@ app.use('/api/stops', createStopsRouter());
 app.use('/api/trips', createTripsRouter());
 app.use('/api/incidents', createIncidentsRouter());
 app.use('/api/automation', createAutomationRouter());
+app.use('/api/auth', createAuthRouter());
 
 
 // Manejador centralizado de errores

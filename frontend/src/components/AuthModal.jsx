@@ -1,4 +1,4 @@
-// Componente Modal: Autenticación No Invasiva y Gestión Multi-Perfil
+// Componente Modal: Autenticación Persistente en PostgreSQL (tuxtla_rutas_db)
 // Unificado con BrandLogo Rubber Hose y reglas Impeccable (cero dark-glow, cero nested-cards, contraste AA).
 
 import React, { useState, useEffect } from 'react';
@@ -6,8 +6,6 @@ import {
   User,
   Mail,
   Lock,
-  Shield,
-  Headphones,
   X,
   LogIn,
   UserPlus,
@@ -15,37 +13,41 @@ import {
   MapPin
 } from 'lucide-react';
 import { BrandLogo } from './BrandLogo.jsx';
+import { apiClient } from '../api/client.js';
 
 const USERS_STORAGE_KEY = 'tuxtla_registered_users';
 const CURRENT_USER_KEY = 'tuxtla_current_user';
 
 export const INITIAL_DEMO_USERS = [
   {
-    id: 'demo-passenger',
-    name: 'Pasajero Tuxtleco',
+    id: 'u-001',
+    name: 'Pasajero Demo UNACH',
     email: 'pasajero@tuxtla.mx',
     password: '123',
-    role: 'USER',
+    role: 'passenger',
     personalPoints: { home: null, school: null, work: null },
-    favoriteIds: []
+    favoriteRoutes: ['r-001', 'r-003'],
+    favoriteIds: ['r-001', 'r-003']
   },
   {
-    id: 'demo-support',
-    name: 'Agente Soporte Vial',
+    id: 'u-002',
+    name: 'Operador Soporte Vial',
     email: 'soporte@tuxtla.mx',
     password: '123',
     role: 'SUPPORT',
     personalPoints: { home: null, school: null, work: null },
-    favoriteIds: []
+    favoriteRoutes: ['r-001', 'r-002'],
+    favoriteIds: ['r-001', 'r-002']
   },
   {
-    id: 'demo-admin',
-    name: 'Administrador de Flota',
+    id: 'u-003',
+    name: 'Administrador General Flota',
     email: 'admin@tuxtla.mx',
     password: '123',
     role: 'ADMIN',
     personalPoints: { home: null, school: null, work: null },
-    favoriteIds: []
+    favoriteRoutes: ['r-001', 'r-002', 'r-003', 'r-004'],
+    favoriteIds: ['r-001', 'r-002', 'r-003', 'r-004']
   }
 ];
 
@@ -104,7 +106,7 @@ export function AuthModal({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState('USER');
+  const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -113,108 +115,132 @@ export function AuthModal({
       setMode(initialMode);
       setErrorMessage('');
       setSuccessMessage('');
+      setSubmitting(false);
     }
   }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 
-  const handleRegister = (e) => {
+  const finalizeSession = (userObj, welcomeText) => {
+    const normalizedUser = {
+      ...userObj,
+      favoriteRoutes: Array.isArray(userObj.favoriteRoutes)
+        ? userObj.favoriteRoutes
+        : Array.isArray(userObj.favoriteIds)
+        ? userObj.favoriteIds
+        : [],
+      favoriteIds: Array.isArray(userObj.favoriteIds)
+        ? userObj.favoriteIds
+        : Array.isArray(userObj.favoriteRoutes)
+        ? userObj.favoriteRoutes
+        : [],
+      personalPoints: userObj.personalPoints || []
+    };
+
+    saveCurrentSessionUser(normalizedUser);
+    const currentStored = loadStoredUsers();
+    const filtered = currentStored.filter(
+      (u) => u.email?.toLowerCase() !== normalizedUser.email?.toLowerCase()
+    );
+    saveStoredUsers([normalizedUser, ...filtered]);
+
+    setSuccessMessage(welcomeText);
+    setTimeout(() => {
+      if (onLoginSuccess) onLoginSuccess(normalizedUser);
+      onClose();
+    }, 380);
+  };
+
+  const handleRegister = async (e) => {
     e.preventDefault();
     setErrorMessage('');
+    setSuccessMessage('');
 
-    if (!name.trim()) {
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    if (!cleanName) {
       setErrorMessage('Ingresa tu nombre para crear la cuenta.');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
+    if (!cleanEmail || !cleanEmail.includes('@')) {
       setErrorMessage('Ingresa un correo electrónico válido.');
       return;
     }
-    if (!password.trim() || password.length < 3) {
+    if (!cleanPassword || cleanPassword.length < 3) {
       setErrorMessage('La contraseña debe tener al menos 3 caracteres.');
       return;
     }
 
-    const currentUsers = loadStoredUsers();
-    const existing = currentUsers.find(
-      (u) => u.email.toLowerCase() === email.trim().toLowerCase()
-    );
-
-    if (existing) {
-      setErrorMessage('Ya existe una cuenta con este correo. Inicia sesión.');
-      return;
+    setSubmitting(true);
+    try {
+      const res = await apiClient.registerUser({
+        name: cleanName,
+        email: cleanEmail,
+        password: cleanPassword
+      });
+      finalizeSession(res.user, `Cuenta creada en PostgreSQL. Bienvenido, ${res.user.name}`);
+    } catch (err) {
+      setErrorMessage(err.message || 'Este correo ya está registrado.');
+    } finally {
+      setSubmitting(false);
     }
-
-    const newUser = {
-      id: `usr_${Date.now()}`,
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      password: password.trim(),
-      role: selectedRole,
-      personalPoints: { home: null, school: null, work: null },
-      favoriteIds: []
-    };
-
-    const updatedUsers = [...currentUsers, newUser];
-    saveStoredUsers(updatedUsers);
-    saveCurrentSessionUser(newUser);
-
-    setSuccessMessage(`Cuenta creada con éxito. Bienvenido, ${newUser.name}`);
-    setTimeout(() => {
-      if (onLoginSuccess) onLoginSuccess(newUser);
-      onClose();
-    }, 550);
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMessage('');
+    setSuccessMessage('');
 
-    if (!email.trim()) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail) {
       setErrorMessage('Ingresa tu correo electrónico.');
       return;
     }
-
-    const currentUsers = loadStoredUsers();
-    const found = currentUsers.find(
-      (u) =>
-        u.email.toLowerCase() === email.trim().toLowerCase() &&
-        u.password === password.trim()
-    );
-
-    if (!found) {
-      setErrorMessage('Correo o contraseña incorrectos.');
+    if (!cleanPassword) {
+      setErrorMessage('Ingresa tu contraseña.');
       return;
     }
 
-    saveCurrentSessionUser(found);
-    setSuccessMessage(`Bienvenido de vuelta, ${found.name}`);
-    setTimeout(() => {
-      if (onLoginSuccess) onLoginSuccess(found);
-      onClose();
-    }, 420);
+    setSubmitting(true);
+    try {
+      const res = await apiClient.loginUser({
+        email: cleanEmail,
+        password: cleanPassword
+      });
+      finalizeSession(res.user, `Bienvenido de vuelta, ${res.user.name}`);
+    } catch (err) {
+      setErrorMessage(err.message || 'Credenciales incorrectas.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleQuickDemoLogin = (demoEmail) => {
+  const handleQuickDemoLogin = async (demoEmail) => {
     setErrorMessage('');
-    const currentUsers = loadStoredUsers();
-    let user = currentUsers.find((u) => u.email.toLowerCase() === demoEmail.toLowerCase());
+    setSuccessMessage('');
+    setSubmitting(true);
 
-    if (!user) {
-      const fallback = INITIAL_DEMO_USERS.find((u) => u.email === demoEmail);
+    try {
+      const res = await apiClient.loginUser({
+        email: demoEmail,
+        password: '123'
+      });
+      finalizeSession(res.user, `Sesión iniciada como ${res.user.name}`);
+    } catch {
+      const fallback = INITIAL_DEMO_USERS.find(
+        (u) => u.email.toLowerCase() === demoEmail.toLowerCase()
+      );
       if (fallback) {
-        user = fallback;
-        saveStoredUsers([...currentUsers, fallback]);
+        finalizeSession(fallback, `Sesión iniciada como ${fallback.name}`);
+      } else {
+        setErrorMessage('No se pudo iniciar la cuenta de evaluación.');
       }
-    }
-
-    if (user) {
-      saveCurrentSessionUser(user);
-      setSuccessMessage(`Sesión iniciada como ${user.name}`);
-      setTimeout(() => {
-        if (onLoginSuccess) onLoginSuccess(user);
-        onClose();
-      }, 320);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -317,7 +343,7 @@ export function AuthModal({
                 }}
               >
                 <LogIn size={16} />
-                <span>Iniciar sesión</span>
+                <span>Iniciar Sesión</span>
               </button>
 
               <button
@@ -341,7 +367,7 @@ export function AuthModal({
                 }}
               >
                 <UserPlus size={16} />
-                <span>Crear cuenta</span>
+                <span>Crear Cuenta</span>
               </button>
 
               <button
@@ -382,7 +408,7 @@ export function AuthModal({
               <p style={{ fontSize: '12px', color: '#A8B8CD', margin: 0 }}>
                 {mode === 'login'
                   ? 'Accede a tus rutas favoritas y puntos frecuentes en Tuxtla'
-                  : 'Regístrate para personalizar tus recorridos diarios'}
+                  : 'Regístrate en PostgreSQL para personalizar tus recorridos diarios'}
               </p>
             </div>
 
@@ -407,11 +433,16 @@ export function AuthModal({
 
             {errorMessage && (
               <div
+                role="alert"
                 style={{
                   color: '#FCA5A5',
                   fontSize: '12px',
                   fontWeight: 600,
-                  marginBottom: '12px'
+                  marginBottom: '12px',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.14)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)'
                 }}
               >
                 {errorMessage}
@@ -435,7 +466,7 @@ export function AuthModal({
               </div>
             )}
 
-            {/* Pestañas limpias con border-bottom (cero nested-cards) */}
+            {/* Pestañas limpias: "Iniciar Sesión" y "Crear Cuenta" */}
             <div
               style={{
                 display: 'grid',
@@ -446,6 +477,7 @@ export function AuthModal({
             >
               <button
                 type="button"
+                id="auth-tab-login"
                 onClick={() => {
                   setMode('login');
                   setErrorMessage('');
@@ -467,6 +499,7 @@ export function AuthModal({
 
               <button
                 type="button"
+                id="auth-tab-register"
                 onClick={() => {
                   setMode('register');
                   setErrorMessage('');
@@ -483,22 +516,43 @@ export function AuthModal({
                   cursor: 'pointer'
                 }}
               >
-                Registrarse
+                Crear Cuenta
               </button>
             </div>
 
-            <form onSubmit={mode === 'login' ? handleLogin : handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form
+              onSubmit={mode === 'login' ? handleLogin : handleRegister}
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
               {mode === 'register' && (
                 <div>
-                  <label htmlFor="auth-register-name" style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#CBD5E1', marginBottom: '5px' }}>
-                    Nombre completo
+                  <label
+                    htmlFor="auth-register-name"
+                    style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#CBD5E1',
+                      marginBottom: '5px'
+                    }}
+                  >
+                    Nombre
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <User size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#A8B8CD' }} />
+                    <User
+                      size={15}
+                      style={{
+                        position: 'absolute',
+                        left: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#A8B8CD'
+                      }}
+                    />
                     <input
                       type="text"
                       id="auth-register-name"
-                      placeholder="Ej. Ana Gómez"
+                      placeholder="Ej. Luis Matus"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       style={{
@@ -518,11 +572,29 @@ export function AuthModal({
               )}
 
               <div>
-                <label htmlFor={mode === 'login' ? 'auth-login-email' : 'auth-register-email'} style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#CBD5E1', marginBottom: '5px' }}>
+                <label
+                  htmlFor={mode === 'login' ? 'auth-login-email' : 'auth-register-email'}
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#CBD5E1',
+                    marginBottom: '5px'
+                  }}
+                >
                   Correo electrónico
                 </label>
                 <div style={{ position: 'relative' }}>
-                  <Mail size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#A8B8CD' }} />
+                  <Mail
+                    size={15}
+                    style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#A8B8CD'
+                    }}
+                  />
                   <input
                     type="email"
                     id={mode === 'login' ? 'auth-login-email' : 'auth-register-email'}
@@ -545,11 +617,29 @@ export function AuthModal({
               </div>
 
               <div>
-                <label htmlFor={mode === 'login' ? 'auth-login-password' : 'auth-register-password'} style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#CBD5E1', marginBottom: '5px' }}>
+                <label
+                  htmlFor={mode === 'login' ? 'auth-login-password' : 'auth-register-password'}
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#CBD5E1',
+                    marginBottom: '5px'
+                  }}
+                >
                   Contraseña
                 </label>
                 <div style={{ position: 'relative' }}>
-                  <Lock size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#A8B8CD' }} />
+                  <Lock
+                    size={15}
+                    style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#A8B8CD'
+                    }}
+                  />
                   <input
                     type="password"
                     id={mode === 'login' ? 'auth-login-password' : 'auth-register-password'}
@@ -571,51 +661,9 @@ export function AuthModal({
                 </div>
               </div>
 
-              {mode === 'register' && (
-                <div>
-                  <span style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#CBD5E1', marginBottom: '6px' }}>
-                    Tipo de perfil:
-                  </span>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                    {[
-                      { id: 'USER', label: 'Pasajero', Icon: User },
-                      { id: 'SUPPORT', label: 'Soporte', Icon: Headphones },
-                      { id: 'ADMIN', label: 'Admin', Icon: Shield }
-                    ].map((p) => {
-                      const isSel = selectedRole === p.id;
-                      const RoleIcon = p.Icon;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => setSelectedRole(p.id)}
-                          style={{
-                            padding: '8px 4px',
-                            background: isSel ? 'rgba(2, 132, 199, 0.24)' : '#1E293B',
-                            border: isSel ? '1px solid #38BDF8' : '1px solid var(--border-subtle)',
-                            borderRadius: '8px',
-                            color: isSel ? '#FFFFFF' : '#CBD5E1',
-                            fontSize: '12px',
-                            fontWeight: isSel ? 700 : 500,
-                            fontFamily: 'inherit',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '5px'
-                          }}
-                        >
-                          <RoleIcon size={13} />
-                          <span>{p.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
               <button
                 type="submit"
+                disabled={submitting}
                 id={mode === 'login' ? 'auth-login-submit' : 'auth-register-submit'}
                 style={{
                   marginTop: '6px',
@@ -627,7 +675,8 @@ export function AuthModal({
                   fontSize: '13px',
                   fontWeight: 700,
                   fontFamily: 'inherit',
-                  cursor: 'pointer',
+                  cursor: submitting ? 'wait' : 'pointer',
+                  opacity: submitting ? 0.75 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -635,72 +684,91 @@ export function AuthModal({
                 }}
               >
                 {mode === 'login' ? <LogIn size={15} /> : <UserPlus size={15} />}
-                <span>{mode === 'login' ? 'Entrar a mi cuenta' : 'Crear cuenta gratis'}</span>
+                <span>
+                  {submitting
+                    ? 'Verificando en PostgreSQL...'
+                    : mode === 'login'
+                    ? 'Iniciar Sesión'
+                    : 'Crear Cuenta'}
+                </span>
               </button>
             </form>
 
-            {mode === 'login' && (
-              <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
-                <span style={{ fontSize: '12px', color: '#CBD5E1', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
-                  Acceso rápido de evaluación:
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemoLogin('pasajero@tuxtla.mx')}
-                    style={{
-                      padding: '6px 4px',
-                      background: 'rgba(13, 148, 104, 0.18)',
-                      border: '1px solid rgba(16, 185, 129, 0.42)',
-                      borderRadius: '6px',
-                      color: '#6EE7B7',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      fontFamily: 'inherit',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Pasajero
-                  </button>
+            {/* Botones de Acceso Rápido para Evaluación siempre disponibles abajo */}
+            <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
+              <span
+                style={{
+                  fontSize: '12px',
+                  color: '#CBD5E1',
+                  fontWeight: 600,
+                  display: 'block',
+                  marginBottom: '8px'
+                }}
+              >
+                Acceso Rápido para Evaluación:
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                <button
+                  type="button"
+                  id="btn-demo-passenger"
+                  disabled={submitting}
+                  onClick={() => handleQuickDemoLogin('pasajero@tuxtla.mx')}
+                  style={{
+                    padding: '6px 4px',
+                    background: 'rgba(13, 148, 104, 0.18)',
+                    border: '1px solid rgba(16, 185, 129, 0.42)',
+                    borderRadius: '6px',
+                    color: '#6EE7B7',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    fontFamily: 'inherit',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Demo Pasajero
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemoLogin('soporte@tuxtla.mx')}
-                    style={{
-                      padding: '6px 4px',
-                      background: 'rgba(2, 132, 199, 0.18)',
-                      border: '1px solid rgba(56, 189, 248, 0.42)',
-                      borderRadius: '6px',
-                      color: '#7DD3FC',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      fontFamily: 'inherit',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Soporte
-                  </button>
+                <button
+                  type="button"
+                  id="btn-demo-support"
+                  disabled={submitting}
+                  onClick={() => handleQuickDemoLogin('soporte@tuxtla.mx')}
+                  style={{
+                    padding: '6px 4px',
+                    background: 'rgba(2, 132, 199, 0.18)',
+                    border: '1px solid rgba(56, 189, 248, 0.42)',
+                    borderRadius: '6px',
+                    color: '#7DD3FC',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    fontFamily: 'inherit',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Soporte
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemoLogin('admin@tuxtla.mx')}
-                    style={{
-                      padding: '6px 4px',
-                      background: 'rgba(245, 158, 11, 0.18)',
-                      border: '1px solid rgba(245, 158, 11, 0.45)',
-                      borderRadius: '6px',
-                      color: '#FDE68A',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      fontFamily: 'inherit',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Admin
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  id="btn-demo-admin"
+                  disabled={submitting}
+                  onClick={() => handleQuickDemoLogin('admin@tuxtla.mx')}
+                  style={{
+                    padding: '6px 4px',
+                    background: 'rgba(245, 158, 11, 0.18)',
+                    border: '1px solid rgba(245, 158, 11, 0.45)',
+                    borderRadius: '6px',
+                    color: '#FDE68A',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    fontFamily: 'inherit',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Admin
+                </button>
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>

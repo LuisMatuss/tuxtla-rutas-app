@@ -56488,5 +56488,115 @@ export const apiClient = {
       data: res.data && res.data.length > 0 ? res.data[0] : null,
       isDemoMode: res.isDemoMode
     };
+  },
+
+  /**
+   * Registra un usuario real en PostgreSQL (POST /api/auth/register)
+   */
+  async registerUser({ name, email, password }) {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ name, email, password }),
+      signal: AbortSignal.timeout(6000)
+    });
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || json.success === false) {
+      const error = new Error(
+        json?.message || json?.error?.message || 'Error al registrar la cuenta.'
+      );
+      error.status = response.status;
+      throw error;
+    }
+
+    const user = json.user || json.data || json;
+    return {
+      success: true,
+      user
+    };
+  },
+
+  /**
+   * Inicia sesión contra PostgreSQL (POST /api/auth/login)
+   */
+  async loginUser({ email, password }) {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ email, password }),
+      signal: AbortSignal.timeout(6000)
+    });
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || json.success === false) {
+      const error = new Error(
+        json?.message || json?.error?.message || 'Credenciales incorrectas.'
+      );
+      error.status = response.status;
+      throw error;
+    }
+
+    const user = json.user || json.data || json;
+    return {
+      success: true,
+      user
+    };
+  },
+
+  /**
+   * Revalida la sesión activa contra PostgreSQL (GET /api/auth/me)
+   */
+  async fetchCurrentUser({ id, email }) {
+    const params = new URLSearchParams();
+    if (id) params.set('id', id);
+    if (email) params.set('email', email);
+
+    const response = await fetch(`${API_BASE_URL}/auth/me?${params.toString()}`, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000)
+    });
+
+    const json = await response.json().catch(() => ({}));
+    if (response.status === 404) {
+      return { success: false, notFound: true };
+    }
+    if (!response.ok || json.success === false) {
+      throw new Error(json?.message || 'No se pudo revalidar la sesión.');
+    }
+
+    const user = json.user || json.data || json;
+    return {
+      success: true,
+      user
+    };
+  },
+
+  /**
+   * Persiste rutas favoritas y puntos personales en PostgreSQL (PATCH /api/auth/preferences)
+   */
+  async updateUserPreferences({ id, email, favoriteRoutes, personalPoints }) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/preferences`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ id, email, favoriteRoutes, personalPoints }),
+        signal: AbortSignal.timeout(5000)
+      });
+      if (!response.ok) return { success: false };
+      const json = await response.json().catch(() => ({}));
+      return { success: true, user: json.user || json.data || json };
+    } catch {
+      return { success: false };
+    }
   }
 };

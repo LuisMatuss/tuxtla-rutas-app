@@ -45,6 +45,34 @@ const EMPTY_PERSONAL_POINTS = {
   trabajo: null
 };
 
+function normalizeAppRole(role) {
+  const upper = String(role || '').toUpperCase();
+  if (upper === 'ADMIN') return 'ADMIN';
+  if (upper === 'SUPPORT') return 'SUPPORT';
+  return 'USER';
+}
+
+function extractPersonalPoints(rawPoints) {
+  if (!rawPoints || Array.isArray(rawPoints) || typeof rawPoints !== 'object') {
+    return EMPTY_PERSONAL_POINTS;
+  }
+  return {
+    home: rawPoints.home || rawPoints.casa || null,
+    school: rawPoints.school || rawPoints.escuela || null,
+    work: rawPoints.work || rawPoints.trabajo || null,
+    casa: rawPoints.home || rawPoints.casa || null,
+    escuela: rawPoints.school || rawPoints.escuela || null,
+    trabajo: rawPoints.work || rawPoints.trabajo || null
+  };
+}
+
+function extractFavoriteIds(user) {
+  if (!user) return [];
+  if (Array.isArray(user.favoriteRoutes)) return user.favoriteRoutes;
+  if (Array.isArray(user.favoriteIds)) return user.favoriteIds;
+  return [];
+}
+
 export default function App() {
   const {
     routes,
@@ -81,26 +109,18 @@ export default function App() {
 
   // 1. Estado de Sesión y Usuario Activo
   const [currentUser, setCurrentUser] = useState(() => loadCurrentSessionUser());
-  const [currentRole, setCurrentRole] = useState(() => currentUser?.role || 'USER');
+  const [currentRole, setCurrentRole] = useState(() => normalizeAppRole(currentUser?.role));
   const [userTab, setUserTab] = useState('routes');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // 2. Puntos Personales
   const [personalPoints, setPersonalPoints] = useState(() => {
     if (!currentUser) return EMPTY_PERSONAL_POINTS;
-    const p = currentUser.personalPoints || {};
-    return {
-      home: p.home || p.casa || null,
-      school: p.school || p.escuela || null,
-      work: p.work || p.trabajo || null,
-      casa: p.home || p.casa || null,
-      escuela: p.school || p.escuela || null,
-      trabajo: p.work || p.trabajo || null
-    };
+    return extractPersonalPoints(currentUser.personalPoints);
   });
 
   // 3. Rutas Favoritas
-  const [favoriteIds, setFavoriteIds] = useState(() => (currentUser ? currentUser.favoriteIds || [] : []));
+  const [favoriteIds, setFavoriteIds] = useState(() => extractFavoriteIds(currentUser));
 
   // 4. Modal de Autenticación y Avisos Contextuales
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -139,6 +159,48 @@ export default function App() {
     fetchIncidentsList();
   }, []);
 
+  // Revalidación de sesión persistida en localStorage contra PostgreSQL (GET /api/auth/me) al recargar con F5
+  useEffect(() => {
+    const stored = loadCurrentSessionUser();
+    if (!stored || (!stored.id && !stored.email)) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiClient.fetchCurrentUser({
+          id: stored.id,
+          email: stored.email
+        });
+        if (cancelled) return;
+        if (res.success && res.user) {
+          const freshUser = {
+            ...stored,
+            ...res.user,
+            favoriteRoutes: extractFavoriteIds(res.user),
+            favoriteIds: extractFavoriteIds(res.user)
+          };
+          setCurrentUser(freshUser);
+          setCurrentRole(normalizeAppRole(freshUser.role));
+          setPersonalPoints(extractPersonalPoints(freshUser.personalPoints));
+          setFavoriteIds(extractFavoriteIds(freshUser));
+          saveCurrentSessionUser(freshUser);
+        } else if (res.notFound) {
+          saveCurrentSessionUser(null);
+          setCurrentUser(null);
+          setCurrentRole('USER');
+          setPersonalPoints(EMPTY_PERSONAL_POINTS);
+          setFavoriteIds([]);
+        }
+      } catch {
+        // Si el backend no responde temporalmente, conservar la sesión persistida en localStorage
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleRequestAuthPrompt = (message) => {
     setAuthPromptMessage(message);
     setAuthModalMode('prompt');
@@ -155,12 +217,18 @@ export default function App() {
       const next = prev.includes(routeId) ? prev.filter((id) => id !== routeId) : [...prev, routeId];
       const updatedUser = {
         ...currentUser,
+        favoriteRoutes: next,
         favoriteIds: next
       };
       setCurrentUser(updatedUser);
       saveCurrentSessionUser(updatedUser);
       const allUsers = loadStoredUsers();
       saveStoredUsers(allUsers.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+      apiClient.updateUserPreferences({
+        id: updatedUser.id,
+        email: updatedUser.email,
+        favoriteRoutes: next
+      });
       return next;
     });
   };
@@ -176,18 +244,16 @@ export default function App() {
   };
 
   const handleLoginSuccess = (user) => {
-    setCurrentUser(user);
-    setCurrentRole(user.role || 'USER');
-    const p = user.personalPoints || {};
-    setPersonalPoints({
-      home: p.home || p.casa || null,
-      school: p.school || p.escuela || null,
-      work: p.work || p.trabajo || null,
-      casa: p.home || p.casa || null,
-      escuela: p.school || p.escuela || null,
-      trabajo: p.work || p.trabajo || null
-    });
-    setFavoriteIds(user.favoriteIds || []);
+    const normalizedFavs = extractFavoriteIds(user);
+    const enrichedUser = {
+      ...user,
+      favoriteRoutes: normalizedFavs,
+      favoriteIds: normalizedFavs
+    };
+    setCurrentUser(enrichedUser);
+    setCurrentRole(normalizeAppRole(enrichedUser.role));
+    setPersonalPoints(extractPersonalPoints(enrichedUser.personalPoints));
+    setFavoriteIds(normalizedFavs);
     setAuthPromptMessage(null);
     setCurrentView('map');
   };
@@ -221,6 +287,11 @@ export default function App() {
         saveCurrentSessionUser(updatedUser);
         const allUsers = loadStoredUsers();
         saveStoredUsers(allUsers.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+        apiClient.updateUserPreferences({
+          id: updatedUser.id,
+          email: updatedUser.email,
+          personalPoints: updated
+        });
       }
       setPickingTarget(null);
     } else if (pickingTarget === 'incident') {
