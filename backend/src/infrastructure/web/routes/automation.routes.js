@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import { pool } from '../../db/postgresPool.js';
 import { PostgresRouteRepository } from '../../repositories/PostgresRouteRepository.js';
+import { PostgresIncidentRepository } from '../../repositories/PostgresIncidentRepository.js';
 import { CalculateNearestStop } from '../../../application/use-cases/CalculateNearestStop.js';
 import { FindRoutes } from '../../../application/use-cases/FindRoutes.js';
 import { PlanTrip } from '../../../application/use-cases/PlanTrip.js';
@@ -22,14 +23,16 @@ export const createAutomationRouter = (dbPool = pool) => {
   const calculateNearestStopUseCase = new CalculateNearestStop(routeRepository);
   const findRoutesUseCase = new FindRoutes(routeRepository);
   const planTripUseCase = new PlanTrip(routeRepository);
-  const incidentController = new IncidentController();
+  const incidentRepository = new PostgresIncidentRepository(dbPool);
+  const incidentController = new IncidentController(incidentRepository);
 
   if (!singletonTelegramService) {
     singletonTelegramService = new TelegramBotService({
       calculateNearestStopUseCase,
       findRoutesUseCase,
       planTripUseCase,
-      incidentController
+      incidentController,
+      incidentRepository
     });
 
     if (process.env.NODE_ENV !== 'test') {

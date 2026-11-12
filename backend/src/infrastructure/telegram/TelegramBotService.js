@@ -112,17 +112,20 @@ export class TelegramBotService {
    * @param {import('../../application/use-cases/FindRoutes.js').FindRoutes} params.findRoutesUseCase
    * @param {import('../../application/use-cases/PlanTrip.js').PlanTrip} params.planTripUseCase
    * @param {import('../web/controllers/IncidentController.js').IncidentController} params.incidentController
+   * @param {import('../repositories/PostgresIncidentRepository.js').PostgresIncidentRepository} params.incidentRepository
    */
   constructor({
     calculateNearestStopUseCase,
     findRoutesUseCase,
     planTripUseCase,
-    incidentController
+    incidentController,
+    incidentRepository
   }) {
     this.calculateNearestStopUseCase = calculateNearestStopUseCase;
     this.findRoutesUseCase = findRoutesUseCase;
     this.planTripUseCase = planTripUseCase;
     this.incidentController = incidentController;
+    this.incidentRepository = incidentRepository;
 
     this.connected = false;
     this.polling = false;
@@ -521,14 +524,53 @@ export class TelegramBotService {
     let replyHtml = '';
 
     try {
+      const rawText = String(message.text || message.caption || '').trim();
+      const reportCommand = rawText.match(/^\/(?:reportar|reporte)(?:@\w+)?(?:\s+([\s\S]*))?$/i);
+
+      // /reportar [TIPO] LAT LNG [descripción], o caption /reportar TIPO en una ubicación adjunta.
+      if (reportCommand) {
+        const args = (reportCommand[1] || '').trim();
+        const match = args.match(/^(?:(\w+)\s+)?(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)(?:\s+([\s\S]+))?$/);
+        const hasLocation = message.location && typeof message.location.latitude === 'number';
+        const coords = hasLocation
+          ? { lat: Number(message.location.latitude), lng: Number(message.location.longitude) }
+          : match ? { lat: Number(match[2]), lng: Number(match[3]) } : null;
+        const locationType = hasLocation ? args.match(/^([A-Z_]+)$/i)?.[1] : null;
+        const type = (match?.[1] || locationType || 'TRAFFIC').toUpperCase();
+        const description = match?.[4] || (hasLocation ? `Reporte recibido por Telegram: ${type}` : 'Reporte enviado desde Telegram.');
+
+        if (!coords || !this.incidentRepository) {
+          replyHtml = [
+            '⚠️ <b>No pude registrar el reporte.</b>',
+            '',
+            'Envía <code>/reportar TIPO LAT LNG descripción</code> (por ejemplo <code>/reportar ACCIDENT 16.75 -93.12 choque</code>).',
+            'También puedes adjuntar una ubicación con el caption <code>/reportar TIPO</code>.'
+          ].join('\n');
+        } else {
+          const iconByType = { ROAD_BLOCK: '🚧', HEAVY_TRAFFIC: '🚗', ACCIDENT: '⚠️', ROAD_WORK: '🔧' };
+          const saved = await this.incidentRepository.create({
+            type,
+            icon: iconByType[type] || '⚠️',
+            title: `Reporte Telegram: ${type}`,
+            description,
+            lat: coords.lat,
+            lng: coords.lng,
+            locationName: `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
+            status: 'PENDING',
+            reportedBy: message.from?.username ? `Telegram @${message.from.username}` : 'Telegram'
+          });
+          replyHtml = `✅ <b>Reporte registrado en PostgreSQL.</b>\n\n${escapeHtml(saved.title)}\n📍 ${escapeHtml(saved.locationName)}\nEl equipo de soporte lo revisará.`;
+        }
+        queryType = 'INCIDENT_REPORT';
+        userTextSummary = rawText;
+      }
       // 1. UBICACIÓN GPS EN VIVO DESDE EL CELULAR
-      if (message.location && typeof message.location.latitude === 'number') {
+      else if (message.location && typeof message.location.latitude === 'number') {
         const { latitude: lat, longitude: lng } = message.location;
         queryType = 'GPS_LOCATION';
         userTextSummary = `📍 GPS (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
         replyHtml = await this.#buildNearestStopsReply(firstName, lat, lng);
       } else {
-        const rawText = String(message.text || '').trim();
         if (!rawText) return;
 
         userTextSummary = rawText;
