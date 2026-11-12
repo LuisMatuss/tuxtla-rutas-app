@@ -21,3 +21,4 @@ export function createAuthRouter() {
 
   return router;
 }
+

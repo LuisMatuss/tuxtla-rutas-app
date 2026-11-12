@@ -547,7 +547,7 @@ export class TelegramBotService {
         // 4. BOTÓN O COMANDO: ALERTAS VIALES ACTIVAS
         else if (this.#isAlertsIntent(rawText, norm)) {
           queryType = 'ROAD_ALERTS';
-          replyHtml = this.#buildActiveAlertsReply();
+          replyHtml = await this.#buildActiveAlertsReply();
         }
         // 5. BOTÓN DE EJEMPLOS "¿CÓMO LLEGAR?"
         else if (this.#isTripExamplesIntent(rawText, norm)) {
@@ -580,6 +580,7 @@ export class TelegramBotService {
       }
     } catch (err) {
       const safeErr = stripTokenFromText(err?.message || 'Error procesando consulta', this.#token);
+      console.error('[TELEGRAM_ERROR]:', err);
       console.warn(`[TelegramBotService] Error procesando mensaje: ${safeErr}`);
       const fallbackMsg = [
         '⚠️ <b>Tuxtla-Rutas</b>',
@@ -922,9 +923,9 @@ export class TelegramBotService {
   /**
    * Consulta IncidentController para mostrar las alertas viales activas en Tuxtla
    */
-  #buildActiveAlertsReply() {
+  async #buildActiveAlertsReply() {
     const activeAlerts = this.incidentController?.listActiveIncidents
-      ? this.incidentController.listActiveIncidents()
+      ? await this.incidentController.listActiveIncidents()
       : [];
 
     if (!activeAlerts || activeAlerts.length === 0) {

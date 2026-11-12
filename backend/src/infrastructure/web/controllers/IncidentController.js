@@ -3,6 +3,7 @@
 
 import { randomUUID } from 'crypto';
 import { TUXTLA_ROUTES_SEED } from '../../db/tuxtlaRoutesSeed.js';
+import { pool } from '../../db/postgresPool.js';
 
 const routesById = new Map();
 TUXTLA_ROUTES_SEED.forEach((r, idx) => {
@@ -12,62 +13,20 @@ TUXTLA_ROUTES_SEED.forEach((r, idx) => {
   routesById.set(r.id, normalized);
 });
 
-// Semilla inicial en memoria con 2 incidentes reales de Tuxtla Gutiérrez alineados con PostgreSQL
-const incidentsStore = new Map([
-  [
-    'inc-001',
-    {
-      id: 'inc-001',
-      type: 'ROAD_BLOCK',
-      icon: '🚧',
-      title: 'Obras y Reducción de Carril en Av. Central',
-      description: 'Trabajos de mantenimiento a la altura de 11a Poniente. Reducción a un carril con desvío sugerido.',
-      lat: 16.7554,
-      lng: -93.1295,
-      locationName: 'Av. Central y 11a Poniente',
-      routeId: 'r-001',
-      routeName: 'Ruta 1 - Av. Central / UNACH / Terán',
-      routeColor: '#2563EB',
-      delayMinutes: 15,
-      status: 'ACTIVE_ALERT', // 'PENDING' | 'ACTIVE_ALERT' | 'RESOLVED'
-      reportedBy: 'Soporte Vial',
-      createdAt: new Date(Date.now() - 3600000).toISOString()
-    }
-  ],
-  [
-    'inc-002',
-    {
-      id: 'inc-002',
-      type: 'HEAVY_TRAFFIC',
-      icon: '🚗',
-      title: 'Tráfico Intenso en Crucero Villaflores',
-      description: 'Circulación lenta en Libramiento Sur con avance intermitente por semáforo en sincronización.',
-      lat: 16.7375,
-      lng: -93.1180,
-      locationName: 'Libramiento Sur y Crucero Villaflores',
-      routeId: 'r-003',
-      routeName: 'Ruta 43 - Libramiento Sur (Poniente - Oriente)',
-      routeColor: '#D97706',
-      delayMinutes: 12,
-      status: 'ACTIVE_ALERT',
-      reportedBy: 'Pasajero Combi TX-43A',
-      createdAt: new Date(Date.now() - 1800000).toISOString()
-    }
-  ]
-]);
-
-export function getActiveIncidents() {
-  return Array.from(incidentsStore.values())
-    .filter((i) => i.status === 'ACTIVE_ALERT')
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
+const INCIDENT_COLUMNS = `id, type, icon, title, description, lat, lng,
+  location_name AS "locationName", route_id AS "routeId", route_name AS "routeName",
+  route_color AS "routeColor", delay_minutes AS "delayMinutes", status,
+  reported_by AS "reportedBy", created_at AS "createdAt"`;
 
 export class IncidentController {
   /**
-   * Obtiene directamente las alertas viales activas en memoria para integraciones internas (ej. TelegramBotService)
+   * Obtiene alertas activas desde PostgreSQL para integraciones internas (ej. TelegramBotService)
    */
-  listActiveIncidents = () => {
-    return getActiveIncidents();
+  listActiveIncidents = async () => {
+    const { rows } = await pool.query(
+      `SELECT ${INCIDENT_COLUMNS} FROM incidents WHERE status = 'ACTIVE_ALERT' ORDER BY created_at DESC`
+    );
+    return rows;
   };
 
   /**
@@ -77,17 +36,14 @@ export class IncidentController {
   getIncidents = async (req, res, next) => {
     try {
       const { status, routeId } = req.query;
-      let items = Array.from(incidentsStore.values());
-
-      if (status) {
-        items = items.filter((i) => i.status === status);
-      }
-      if (routeId) {
-        items = items.filter((i) => i.routeId === routeId);
-      }
-
-      // Ordenar más recientes primero
-      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const values = [];
+      const filters = [];
+      if (status) { values.push(status); filters.push(`status = $${values.length}`); }
+      if (routeId) { values.push(routeId); filters.push(`route_id = $${values.length}`); }
+      const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+      const { rows: items } = await pool.query(
+        `SELECT ${INCIDENT_COLUMNS} FROM incidents ${where} ORDER BY created_at DESC`, values
+      );
 
       res.status(200).json({
         success: true,
@@ -117,14 +73,14 @@ export class IncidentController {
         locationName
       } = req.body || {};
 
-      if (!lat || !lng) {
+      if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
         return res.status(400).json({
           success: false,
           error: { message: 'Se requieren coordenadas válidas (lat, lng).' }
         });
       }
 
-      const id = `inc-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+      const id = `inc-${randomUUID()}`;
       const route = routeId ? routesById.get(routeId) : null;
 
       // Asignar icono semántico según tipo de incidente
@@ -137,26 +93,20 @@ export class IncidentController {
         ROAD_WORK: '🔧'
       };
 
-      const newIncident = {
-        id,
-        type,
-        icon: iconMap[type] || '⚠️',
-        title: title || `Reporte vial: ${type}`,
-        description: description || 'Incidente vial reportado en vía pública.',
-        lat: Number(lat),
-        lng: Number(lng),
-        locationName: locationName || `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`,
-        routeId: routeId || null,
-        routeName: route ? route.name : 'Vía General / Multiruta',
-        routeColor: route ? route.color : '#64748b',
-        delayMinutes: Number(delayMinutes) || 10,
-        // Los reportes de pasajeros quedan en PENDING hasta ser validados por Soporte
-        status: createdByRole === 'USER' ? 'PENDING' : 'ACTIVE_ALERT',
-        reportedBy: createdByRole === 'USER' ? 'Reporte Ciudadano' : 'Soporte Vial Tuxtla',
-        createdAt: new Date().toISOString()
-      };
-
-      incidentsStore.set(id, newIncident);
+      const status = createdByRole === 'USER' ? 'PENDING' : 'ACTIVE_ALERT';
+      const query = `INSERT INTO incidents
+        (id, type, icon, title, description, lat, lng, location_name, route_id, route_name,
+         route_color, delay_minutes, status, reported_by)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        RETURNING ${INCIDENT_COLUMNS}`;
+      const { rows: [newIncident] } = await pool.query(query, [
+        id, type, iconMap[type] || '⚠️', title || `Reporte vial: ${type}`,
+        description || 'Incidente vial reportado en vía pública.', Number(lat), Number(lng),
+        locationName || `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`,
+        routeId || null, route ? route.name : 'Vía General / Multiruta',
+        route ? route.color : '#64748b', Number(delayMinutes) || 10, status,
+        createdByRole === 'USER' ? 'Reporte Ciudadano' : 'Soporte Vial Tuxtla'
+      ]);
 
       res.status(201).json({
         success: true,
@@ -180,23 +130,16 @@ export class IncidentController {
       const { id } = req.params;
       const { status, delayMinutes } = req.body || {};
 
-      const incident = incidentsStore.get(id);
-      if (!incident) {
-        return res.status(404).json({
-          success: false,
-          error: { message: `No se encontró el incidente con ID ${id}.` }
-        });
-      }
-
-      if (status) {
-        incident.status = status;
-      }
-      if (delayMinutes !== undefined) {
-        incident.delayMinutes = Number(delayMinutes);
-      }
-      incident.updatedAt = new Date().toISOString();
-
-      incidentsStore.set(id, incident);
+      const values = [id];
+      const updates = [];
+      if (status) { values.push(status); updates.push(`status = $${values.length}`); }
+      if (delayMinutes !== undefined) { values.push(Number(delayMinutes)); updates.push(`delay_minutes = $${values.length}`); }
+      if (!updates.length) return res.status(400).json({ success: false, error: { message: 'No hay cambios para aplicar.' } });
+      const { rows: [incident] } = await pool.query(
+        `UPDATE incidents SET ${updates.join(', ')} WHERE id = $1 RETURNING ${INCIDENT_COLUMNS}`,
+        values
+      );
+      if (!incident) return res.status(404).json({ success: false, error: { message: `No se encontró el incidente con ID ${id}.` } });
 
       res.status(200).json({
         success: true,

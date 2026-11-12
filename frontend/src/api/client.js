@@ -2,7 +2,7 @@
 // Si el backend o contenedor de base de datos no está disponible, activa automáticamente
 // el dataset de respaldo con las 8 rutas reales de Tuxtla Gutiérrez, cálculo Haversine y telemetría simulada LERP.
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = '/api';
 
 /**
  * Cálculo de distancia geodésica mediante la fórmula de Haversine (en metros)
@@ -56223,12 +56223,8 @@ export const apiClient = {
         isDemoMode: false
       };
     } catch (err) {
-      console.warn('[Tuxtla-Rutas API] Usando alertas locales:', err.message);
-      return {
-        success: true,
-        data: demoIncidents,
-        isDemoMode: true
-      };
+      console.error('[Tuxtla-Rutas API] Error al obtener incidentes:', err);
+      throw err;
     }
   },
 
@@ -56254,15 +56250,8 @@ export const apiClient = {
       const json = await response.json();
       return { success: true, data: json.data, isDemoMode: false };
     } catch (err) {
-      console.warn('[Tuxtla-Rutas API] Guardando incidente localmente:', err.message);
-      const newInc = {
-        id: `inc-${Date.now()}`,
-        ...payload,
-        status: payload.createdByRole === 'USER' ? 'PENDING' : 'ACTIVE_ALERT',
-        createdAt: new Date().toISOString()
-      };
-      demoIncidents = [newInc, ...demoIncidents];
-      return { success: true, data: newInc, isDemoMode: true };
+      console.error('[Tuxtla-Rutas API] Error al reportar incidente:', err);
+      throw err;
     }
   },
 
@@ -56288,10 +56277,8 @@ export const apiClient = {
       const json = await response.json();
       return { success: true, data: json.data, isDemoMode: false };
     } catch (err) {
-      demoIncidents = demoIncidents.map((i) =>
-        i.id === id ? { ...i, status: status || i.status, delayMinutes: delayMinutes ?? i.delayMinutes } : i
-      );
-      return { success: true, isDemoMode: true };
+      console.error('[Tuxtla-Rutas API] Error al actualizar incidente:', err);
+      throw err;
     }
   },
 
