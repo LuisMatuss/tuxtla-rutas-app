@@ -20,9 +20,11 @@ export function useGeoRoutes() {
     routesRef.current = routes;
   }, [routes]);
 
-  // Carga inicial de rutas (solo se ejecuta al montar o recargar explícitamente)
-  const loadRoutes = useCallback(async () => {
-    setLoading(true);
+  // Carga de rutas desde PostgreSQL (con soporte de actualización silenciosa en segundo plano)
+  const loadRoutes = useCallback(async (options = {}) => {
+    if (!options?.silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const response = await apiClient.fetchRoutes();
@@ -35,10 +37,14 @@ export function useGeoRoutes() {
     } catch (err) {
       console.error('[useGeoRoutes] Error al cargar rutas:', err);
       setError(err.message || 'Error al conectar con el servicio de rutas');
-      setRoutes(BACKUP_ROUTES);
-      routesRef.current = BACKUP_ROUTES;
+      if (!routesRef.current || routesRef.current.length === 0) {
+        setRoutes(BACKUP_ROUTES);
+        routesRef.current = BACKUP_ROUTES;
+      }
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   }, []);
 

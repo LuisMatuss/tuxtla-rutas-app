@@ -43,7 +43,7 @@ export function ReportIncidentModal({
       const lat = userLocation?.lat || 16.7516;
       const lng = userLocation?.lng || -93.1161;
 
-      await apiClient.reportIncident({
+      const res = await apiClient.reportIncident({
         type: category,
         title: `${selectedCat?.label || 'Reporte'}: ${selectedRoute?.name || 'Ruta'}`,
         description: comment.trim() || 'Reporte de incidencia enviado por pasajero.',
@@ -56,7 +56,7 @@ export function ReportIncidentModal({
       });
 
       setSuccess(true);
-      if (onIncidentReported) onIncidentReported();
+      if (onIncidentReported) onIncidentReported(res?.data || null);
 
       setTimeout(() => {
         setSuccess(false);

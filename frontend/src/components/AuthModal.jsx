@@ -1,5 +1,5 @@
-// Componente Modal: Autenticación Persistente en PostgreSQL (tuxtla_rutas_db)
-// Unificado con BrandLogo Rubber Hose y reglas Impeccable (cero dark-glow, cero nested-cards, contraste AA).
+// Componente Modal: Autenticación Persistente 100% en PostgreSQL (tuxtla_rutas_db)
+// Cero usuarios mock en memoria ni en localStorage: única fuente de verdad vía /api/auth.
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -15,63 +15,7 @@ import {
 import { BrandLogo } from './BrandLogo.jsx';
 import { apiClient } from '../api/client.js';
 
-const USERS_STORAGE_KEY = 'tuxtla_registered_users';
 const CURRENT_USER_KEY = 'tuxtla_current_user';
-
-export const INITIAL_DEMO_USERS = [
-  {
-    id: 'u-001',
-    name: 'Pasajero Demo UNACH',
-    email: 'pasajero@tuxtla.mx',
-    password: '123',
-    role: 'passenger',
-    personalPoints: { home: null, school: null, work: null },
-    favoriteRoutes: ['r-001', 'r-003'],
-    favoriteIds: ['r-001', 'r-003']
-  },
-  {
-    id: 'u-002',
-    name: 'Operador Soporte Vial',
-    email: 'soporte@tuxtla.mx',
-    password: '123',
-    role: 'SUPPORT',
-    personalPoints: { home: null, school: null, work: null },
-    favoriteRoutes: ['r-001', 'r-002'],
-    favoriteIds: ['r-001', 'r-002']
-  },
-  {
-    id: 'u-003',
-    name: 'Administrador General Flota',
-    email: 'admin@tuxtla.mx',
-    password: '123',
-    role: 'ADMIN',
-    personalPoints: { home: null, school: null, work: null },
-    favoriteRoutes: ['r-001', 'r-002', 'r-003', 'r-004'],
-    favoriteIds: ['r-001', 'r-002', 'r-003', 'r-004']
-  }
-];
-
-export function loadStoredUsers() {
-  try {
-    const raw = localStorage.getItem(USERS_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_DEMO_USERS));
-      return INITIAL_DEMO_USERS;
-    }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_DEMO_USERS;
-  } catch {
-    return INITIAL_DEMO_USERS;
-  }
-}
-
-export function saveStoredUsers(users) {
-  try {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-  } catch (err) {
-    console.warn('Error al guardar usuarios en localStorage:', err);
-  }
-}
 
 export function loadCurrentSessionUser() {
   try {
@@ -91,7 +35,7 @@ export function saveCurrentSessionUser(user) {
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
     }
   } catch (err) {
-    console.warn('Error al guardar sesión en localStorage:', err);
+    console.warn('Error al guardar sesión activa:', err);
   }
 }
 
@@ -138,12 +82,6 @@ export function AuthModal({
     };
 
     saveCurrentSessionUser(normalizedUser);
-    const currentStored = loadStoredUsers();
-    const filtered = currentStored.filter(
-      (u) => u.email?.toLowerCase() !== normalizedUser.email?.toLowerCase()
-    );
-    saveStoredUsers([normalizedUser, ...filtered]);
-
     setSuccessMessage(welcomeText);
     setTimeout(() => {
       if (onLoginSuccess) onLoginSuccess(normalizedUser);
@@ -230,15 +168,8 @@ export function AuthModal({
         password: '123'
       });
       finalizeSession(res.user, `Sesión iniciada como ${res.user.name}`);
-    } catch {
-      const fallback = INITIAL_DEMO_USERS.find(
-        (u) => u.email.toLowerCase() === demoEmail.toLowerCase()
-      );
-      if (fallback) {
-        finalizeSession(fallback, `Sesión iniciada como ${fallback.name}`);
-      } else {
-        setErrorMessage('No se pudo iniciar la cuenta de evaluación.');
-      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Error al autenticar cuenta contra PostgreSQL.');
     } finally {
       setSubmitting(false);
     }
@@ -694,7 +625,7 @@ export function AuthModal({
               </button>
             </form>
 
-            {/* Botones de Acceso Rápido para Evaluación siempre disponibles abajo */}
+            {/* Botones de Acceso Rápido para Evaluación autenticados contra PostgreSQL */}
             <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-subtle)' }}>
               <span
                 style={{

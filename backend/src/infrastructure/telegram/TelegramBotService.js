@@ -3,6 +3,7 @@
 // buscador espacial GPS, planificador multimodal PlanTrip y alertas viales en vivo.
 // Cumple estricta política Zero-Trust: jamás expone ni imprime el token en logs ni respuestas.
 
+import { pool } from '../db/postgresPool.js';
 import { TUXTLA_ROUTES_SEED, calculateHaversineDistance } from '../db/tuxtlaRoutesSeed.js';
 import { getRouteShortCode } from '../web/controllers/AutomationController.js';
 
@@ -134,6 +135,146 @@ export class TelegramBotService {
     this.totalProcessed = 0;
     this.lastError = null;
     this.logs = [];
+    this.activeChatIds = new Set();
+    this.notifiedIncidentIds = new Set();
+
+    const envChatId = (process.env.TELEGRAM_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID || '').trim();
+    if (envChatId) {
+      this.activeChatIds.add(envChatId);
+    }
+
+    this.#loadPersistedSubscribers().catch(() => {});
+    this.#preloadExistingIncidents().catch(() => {});
+  }
+
+  /**
+   * Pre-carga los IDs de todos los incidentes que ya existen en PostgreSQL al iniciar el servidor
+   * para evitar reenviar incidentes antiguos al reiniciar con nodemon.
+   */
+  async #preloadExistingIncidents() {
+    try {
+      const res = await pool.query('SELECT id FROM incidents;');
+      for (const row of res.rows) {
+        if (row.id) {
+          this.notifiedIncidentIds.add(String(row.id));
+        }
+      }
+    } catch {
+      // Continuar si la tabla aún no está inicializada
+    }
+  }
+
+  /**
+   * Carga los chat_id registrados exclusivamente desde PostgreSQL (tabla telegram_subscribers)
+   */
+  async #loadPersistedSubscribers() {
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS telegram_subscribers (
+          chat_id VARCHAR(64) PRIMARY KEY,
+          first_name VARCHAR(150),
+          username VARCHAR(150),
+          updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      const res = await pool.query('SELECT chat_id FROM telegram_subscribers ORDER BY updated_at DESC;');
+      for (const row of res.rows) {
+        if (row.chat_id && String(row.chat_id) !== 'sim_local') {
+          this.activeChatIds.add(String(row.chat_id));
+        }
+      }
+    } catch {
+      // Ignorar si hay error temporal de conexión
+    }
+  }
+
+  /**
+   * Registra un chat_id activo en memoria y PostgreSQL cuando un usuario interactúa con el bot
+   * (sin escribir archivos en disco para no disparar reinicios de nodemon)
+   */
+  async #registerSubscriberChat(chatId, firstName = 'Pasajero', username = null) {
+    const cleanId = String(chatId || '').trim();
+    if (!cleanId || cleanId === 'sim_local') return;
+
+    const alreadyKnown = this.activeChatIds.has(cleanId);
+    this.activeChatIds.add(cleanId);
+
+    if (alreadyKnown) return;
+
+    try {
+      await pool.query(
+        `
+        INSERT INTO telegram_subscribers (chat_id, first_name, username, updated_at)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        ON CONFLICT (chat_id) DO UPDATE SET
+          first_name = EXCLUDED.first_name,
+          username = EXCLUDED.username,
+          updated_at = CURRENT_TIMESTAMP;
+        `,
+        [cleanId, firstName || 'Pasajero', username || null]
+      );
+    } catch {
+      // Ignorar si hay error puntual en tabla
+    }
+  }
+
+  /**
+   * Notifica una sola vez en tiempo real a los chats registrados cuando se crea un incidente nuevo en POST /api/incidents
+   */
+  async notifyIncidentCreated(incident) {
+    if (!incident || !incident.id) return { notifiedCount: 0 };
+
+    const incidentId = String(incident.id).trim();
+    if (!incidentId || this.notifiedIncidentIds.has(incidentId)) {
+      return { notifiedCount: 0, deduplicated: true };
+    }
+
+    // Candado de envío único: registrar incident.id ANTES de realizar cualquier envío
+    this.notifiedIncidentIds.add(incidentId);
+
+    await this.#loadPersistedSubscribers();
+
+    const icon = incident.icon || '⚠️';
+    const title = incident.title || `Reporte vial: ${incident.type || 'TRAFFIC'}`;
+    const location = incident.locationName || incident.location_name || 'Tuxtla Gutiérrez';
+    const routeName = incident.routeName || incident.route_name || 'Vía General / Multiruta';
+    const delay = incident.delayMinutes ?? incident.delay_minutes ?? 10;
+    const desc = incident.description || 'Incidente reportado desde el portal web.';
+    const reportedBy = incident.reportedBy || incident.reported_by || 'Portal Web Tuxtla-Rutas';
+
+    const alertHtml = [
+      '🚨 <b>Nueva Alerta Vial Reportada en Tuxtla-Rutas</b>',
+      '',
+      `<b>${icon} ${escapeHtml(title)}</b>`,
+      `📍 <b>Ubicación:</b> ${escapeHtml(location)}`,
+      `🚌 <b>Ruta afectada:</b> ${escapeHtml(routeName)}`,
+      `⏱️ <b>Retraso estimado:</b> +${delay} min`,
+      `📝 <b>Detalle:</b> ${escapeHtml(desc)}`,
+      `👤 <b>Reportado por:</b> ${escapeHtml(reportedBy)}`
+    ].join('\n');
+
+    this.#recordActivityLog({
+      userName: reportedBy,
+      queryType: 'WEB_INCIDENT_ALERT',
+      userText: `🚨 Reporte Web: ${title} (${location})`,
+      botReplyHtml: alertHtml
+    });
+
+    if (!this.#token || this.activeChatIds.size === 0) {
+      return { notifiedCount: 0, subscriberCount: this.activeChatIds.size };
+    }
+
+    let notifiedCount = 0;
+    for (const chatId of this.activeChatIds) {
+      try {
+        await this.#sendTelegramReply(chatId, alertHtml, true);
+        notifiedCount += 1;
+      } catch (err) {
+        console.warn(`[TelegramBotService] No se pudo enviar alerta a chat ${chatId}:`, err.message);
+      }
+    }
+
+    return { notifiedCount, subscriberCount: this.activeChatIds.size };
   }
 
   /**
@@ -155,6 +296,9 @@ export class TelegramBotService {
    * Arranque inicial automático leyendo process.env.TELEGRAM_BOT_TOKEN
    */
   async start() {
+    await this.#preloadExistingIncidents();
+    await this.#loadPersistedSubscribers();
+
     const envToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
     if (isPlaceholderToken(envToken)) {
       this.connected = false;
@@ -200,10 +344,10 @@ export class TelegramBotService {
       this.botName = botInfo.first_name || 'Tuxtla-Rutas Bot';
       this.botUsername = botInfo.username ? `@${String(botInfo.username).replace(/^@/, '')}` : null;
 
-      // 2. Limpiar webhook activo para evitar 409 Conflict en getUpdates
+      // 2. Limpiar webhook activo y descartar updates viejos acumulados antes del arranque
       await this.#callTelegramApi(
         this.#token,
-        'deleteWebhook?drop_pending_updates=false',
+        'deleteWebhook?drop_pending_updates=true',
         { method: 'POST' },
         10000
       );
@@ -329,6 +473,9 @@ export class TelegramBotService {
         const updates = Array.isArray(response?.result) ? response.result : [];
         for (const update of updates) {
           if (typeof update.update_id === 'number') {
+            if (update.update_id < this.#offset) {
+              continue;
+            }
             this.#offset = Math.max(this.#offset, update.update_id + 1);
           }
           if (update.message) {
@@ -519,6 +666,13 @@ export class TelegramBotService {
     const usernameTag = message?.from?.username ? ` (@${message.from.username})` : '';
     const displayUser = `${firstName}${usernameTag}`;
 
+    // Persistir chat_id en PostgreSQL (telegram_subscribers) y archivo local para recibir alertas creadas desde la web
+    await this.#registerSubscriberChat(
+      chatId,
+      firstName,
+      message?.from?.username || message?.chat?.username || null
+    );
+
     let queryType = 'TEXT_QUERY';
     let userTextSummary = '';
     let replyHtml = '';
@@ -527,23 +681,36 @@ export class TelegramBotService {
       const rawText = String(message.text || message.caption || '').trim();
       const reportCommand = rawText.match(/^\/(?:reportar|reporte)(?:@\w+)?(?:\s+([\s\S]*))?$/i);
 
-      // /reportar [TIPO] LAT LNG [descripción], o caption /reportar TIPO en una ubicación adjunta.
+      // /reportar [TIPO] LAT LNG [descripción], /reportar [descripción en texto], o caption /reportar TIPO en una ubicación adjunta.
       if (reportCommand) {
         const args = (reportCommand[1] || '').trim();
         const match = args.match(/^(?:(\w+)\s+)?(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)(?:\s+([\s\S]+))?$/);
         const hasLocation = message.location && typeof message.location.latitude === 'number';
-        const coords = hasLocation
+        let coords = hasLocation
           ? { lat: Number(message.location.latitude), lng: Number(message.location.longitude) }
           : match ? { lat: Number(match[2]), lng: Number(match[3]) } : null;
+        let resolvedPlaceLabel = null;
+
+        if (!coords && args) {
+          const resolved = await this.#resolveTuxtlaPlace(args);
+          if (resolved) {
+            coords = { lat: resolved.lat, lng: resolved.lng };
+            resolvedPlaceLabel = resolved.label;
+          } else {
+            coords = { lat: 16.7536, lng: -93.1155 };
+            resolvedPlaceLabel = 'Centro de Tuxtla Gutiérrez';
+          }
+        }
+
         const locationType = hasLocation ? args.match(/^([A-Z_]+)$/i)?.[1] : null;
-        const type = (match?.[1] || locationType || 'TRAFFIC').toUpperCase();
-        const description = match?.[4] || (hasLocation ? `Reporte recibido por Telegram: ${type}` : 'Reporte enviado desde Telegram.');
+        const type = (match?.[1] || locationType || (/bloqueo|cerrad/i.test(args) ? 'ROAD_BLOCK' : /trafico|tráfico/i.test(args) ? 'HEAVY_TRAFFIC' : 'TRAFFIC')).toUpperCase();
+        const description = match?.[4] || (args && !match ? args : hasLocation ? `Reporte recibido por Telegram: ${type}` : 'Reporte enviado desde Telegram.');
 
         if (!coords || !this.incidentRepository) {
           replyHtml = [
             '⚠️ <b>No pude registrar el reporte.</b>',
             '',
-            'Envía <code>/reportar TIPO LAT LNG descripción</code> (por ejemplo <code>/reportar ACCIDENT 16.75 -93.12 choque</code>).',
+            'Envía <code>/reportar TIPO LAT LNG descripción</code> (por ejemplo <code>/reportar ACCIDENT 16.75 -93.12 choque</code>) o <code>/reportar Bloqueo en Parque de la Marimba</code>.',
             'También puedes adjuntar una ubicación con el caption <code>/reportar TIPO</code>.'
           ].join('\n');
         } else {
@@ -555,10 +722,13 @@ export class TelegramBotService {
             description,
             lat: coords.lat,
             lng: coords.lng,
-            locationName: `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
+            locationName: resolvedPlaceLabel || `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
             status: 'PENDING',
             reportedBy: message.from?.username ? `Telegram @${message.from.username}` : 'Telegram'
           });
+          if (saved?.id) {
+            this.notifiedIncidentIds.add(String(saved.id));
+          }
           replyHtml = `✅ <b>Reporte registrado en PostgreSQL.</b>\n\n${escapeHtml(saved.title)}\n📍 ${escapeHtml(saved.locationName)}\nEl equipo de soporte lo revisará.`;
         }
         queryType = 'INCIDENT_REPORT';

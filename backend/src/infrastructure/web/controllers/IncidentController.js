@@ -1,5 +1,9 @@
 import { TUXTLA_ROUTES_SEED } from '../../db/tuxtlaRoutesSeed.js';
-import { PostgresIncidentRepository } from '../../repositories/PostgresIncidentRepository.js';
+import {
+  PostgresIncidentRepository,
+  normalizeRouteId
+} from '../../repositories/PostgresIncidentRepository.js';
+import { getTelegramBotService } from '../routes/automation.routes.js';
 
 const routesById = new Map();
 TUXTLA_ROUTES_SEED.forEach((route, idx) => {
@@ -10,9 +14,16 @@ TUXTLA_ROUTES_SEED.forEach((route, idx) => {
 });
 
 export class IncidentController {
-  /** @param {PostgresIncidentRepository} [incidentRepository] */
-  constructor(incidentRepository = new PostgresIncidentRepository()) {
+  /**
+   * @param {PostgresIncidentRepository} [incidentRepository]
+   * @param {import('../../telegram/TelegramBotService.js').TelegramBotService} [telegramBotService]
+   */
+  constructor(
+    incidentRepository = new PostgresIncidentRepository(),
+    telegramBotService = null
+  ) {
     this.incidentRepository = incidentRepository;
+    this.telegramBotService = telegramBotService;
   }
 
   listActiveIncidents = () => this.incidentRepository.findActive();
@@ -32,30 +43,50 @@ export class IncidentController {
   createIncident = async (req, res, next) => {
     try {
       const data = req.body || {};
-      const routeId = data.routeId || data.route_id || null;
-      const route = routeId ? routesById.get(routeId) : null;
+      const rawRouteId = data.routeId ?? data.route_id ?? null;
+      const normalizedRouteId = normalizeRouteId(rawRouteId, data.routeName || data.route_name);
+      const route =
+        (normalizedRouteId ? routesById.get(normalizedRouteId) : null) ||
+        (rawRouteId ? routesById.get(rawRouteId) : null);
+
       const iconByType = {
-        ROAD_BLOCK: '🚧', HEAVY_TRAFFIC: '🚗', HEAVY_RAIN: '🌧️',
-        CROWDED_BUS: '🚐', ACCIDENT: '⚠️', ROAD_WORK: '🔧'
+        ROAD_BLOCK: '🚧',
+        HEAVY_TRAFFIC: '🚗',
+        HEAVY_RAIN: '🌧️',
+        FLOODING: '🌧️',
+        CROWDED_BUS: '🚐',
+        CROWDED_UNIT: '🚐',
+        HIGH_DELAY: '⏱️',
+        ACCIDENT: '⚠️',
+        ROAD_WORK: '🔧'
       };
+
       const createdByRole = data.createdByRole || data.created_by_role;
       const incident = await this.incidentRepository.create({
         ...data,
         id: data.id || `inc-${Date.now()}`,
         icon: data.icon || iconByType[data.type] || '⚠️',
-        routeId,
+        routeId: normalizedRouteId || rawRouteId || null,
         routeName: data.routeName || data.route_name || route?.name || null,
         routeColor: data.routeColor || data.route_color || route?.color || '#2563EB',
-        status: data.status || (createdByRole === 'USER' ? 'PENDING' : 'ACTIVE_ALERT'),
-        reportedBy: data.reportedBy || data.reported_by ||
-          (createdByRole === 'USER' ? 'Reporte Ciudadano' : 'Soporte Vial Tuxtla')
+        status: data.status || 'ACTIVE_ALERT',
+        reportedBy:
+          data.reportedBy ||
+          data.reported_by ||
+          (createdByRole === 'USER' ? 'Reporte Ciudadano Web' : 'Soporte Vial Tuxtla')
       });
+
+      // Notificar automáticamente al Bot de Telegram en tiempo real
+      const botService = this.telegramBotService || getTelegramBotService();
+      if (botService && typeof botService.notifyIncidentCreated === 'function') {
+        botService.notifyIncidentCreated(incident).catch((err) => {
+          console.warn('[IncidentController] Error al enviar aviso a Telegram:', err.message);
+        });
+      }
 
       res.status(201).json({
         success: true,
-        message: incident.status === 'PENDING'
-          ? 'Reporte enviado exitosamente. Será verificado por el equipo de Soporte Vial.'
-          : 'Alerta vial publicada exitosamente en el mapa interactivo.',
+        message: 'Alerta vial registrada en PostgreSQL y publicada en el mapa interactivo.',
         data: incident
       });
     } catch (error) {
@@ -67,12 +98,19 @@ export class IncidentController {
     try {
       const body = req.body || {};
       if (!body.status && body.delayMinutes === undefined && body.delay_minutes === undefined) {
-        return res.status(400).json({ success: false, error: { message: 'No hay cambios para aplicar.' } });
+        return res.status(400).json({
+          success: false,
+          error: { message: 'No hay cambios para aplicar.' }
+        });
       }
       const incident = await this.incidentRepository.update(req.params.id, req.body || {});
       if (!incident) {
-        return res.status(404).json({ success: false, error: { message: `No se encontró el incidente con ID ${req.params.id}.` } });
+        return res.status(404).json({
+          success: false,
+          error: { message: `No se encontró el incidente con ID ${req.params.id}.` }
+        });
       }
+
       res.status(200).json({
         success: true,
         message: `Incidente ${req.params.id} actualizado a estado "${incident.status}".`,

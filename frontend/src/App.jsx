@@ -27,8 +27,6 @@ import { AdminPanel } from './components/Sidebar/AdminPanel.jsx';
 import { ReportIncidentModal } from './components/Sidebar/ReportIncidentModal.jsx';
 import {
   AuthModal,
-  loadStoredUsers,
-  saveStoredUsers,
   loadCurrentSessionUser,
   saveCurrentSessionUser
 } from './components/AuthModal.jsx';
@@ -141,23 +139,53 @@ export default function App() {
   const [incidents, setIncidents] = useState([]);
   const [loadingIncidents, setLoadingIncidents] = useState(false);
 
-  const fetchIncidentsList = async () => {
-    setLoadingIncidents(true);
+  const fetchIncidentsList = async (options = {}) => {
+    if (!options?.silent) {
+      setLoadingIncidents(true);
+    }
     try {
       const res = await apiClient.fetchIncidents();
-      if (res.data) {
+      if (Array.isArray(res.data)) {
         setIncidents(res.data);
       }
     } catch (err) {
       console.warn('Error al obtener incidencias:', err);
     } finally {
-      setLoadingIncidents(false);
+      if (!options?.silent) {
+        setLoadingIncidents(false);
+      }
     }
   };
 
+  // Sincronización en tiempo real de incidentes y rutas desde PostgreSQL (Telegram, pgAdmin u otros dispositivos)
   useEffect(() => {
     fetchIncidentsList();
-  }, []);
+
+    const incidentsTimer = setInterval(() => {
+      fetchIncidentsList({ silent: true });
+    }, 4000);
+
+    const routesTimer = setInterval(() => {
+      reloadRoutes({ silent: true });
+    }, 10000);
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchIncidentsList({ silent: true });
+        reloadRoutes({ silent: true });
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      clearInterval(incidentsTimer);
+      clearInterval(routesTimer);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
+  }, [reloadRoutes]);
 
   // Revalidación de sesión persistida en localStorage contra PostgreSQL (GET /api/auth/me) al recargar con F5
   useEffect(() => {
@@ -222,8 +250,6 @@ export default function App() {
       };
       setCurrentUser(updatedUser);
       saveCurrentSessionUser(updatedUser);
-      const allUsers = loadStoredUsers();
-      saveStoredUsers(allUsers.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
       apiClient.updateUserPreferences({
         id: updatedUser.id,
         email: updatedUser.email,
@@ -285,8 +311,6 @@ export default function App() {
         };
         setCurrentUser(updatedUser);
         saveCurrentSessionUser(updatedUser);
-        const allUsers = loadStoredUsers();
-        saveStoredUsers(allUsers.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
         apiClient.updateUserPreferences({
           id: updatedUser.id,
           email: updatedUser.email,
@@ -362,7 +386,7 @@ export default function App() {
     setUserLocation({ lat: place.lat, lng: place.lng });
   };
 
-  const activeAlertsCount = incidents.filter((i) => i.status === 'ACTIVE_ALERT').length;
+  const activeAlertsCount = incidents.filter((i) => i && i.status !== 'RESOLVED').length;
 
   return (
     <>
@@ -1012,8 +1036,14 @@ export default function App() {
             onClose={() => setIsReportModalOpen(false)}
             routes={routes}
             userLocation={userLocation}
-            onIncidentReported={() => {
-              fetchIncidentsList();
+            onIncidentReported={(createdIncident) => {
+              if (createdIncident) {
+                setIncidents((prev) => [
+                  createdIncident,
+                  ...prev.filter((item) => item.id !== createdIncident.id)
+                ]);
+              }
+              fetchIncidentsList({ silent: true });
             }}
           />
         </div>

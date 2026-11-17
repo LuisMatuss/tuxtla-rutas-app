@@ -71,4 +71,5 @@ Thumbs.db
 .gemini/
 scratch/
 entregable_overleaf/
+backend/src/infrastructure/telegram/telegram_chats.json
 

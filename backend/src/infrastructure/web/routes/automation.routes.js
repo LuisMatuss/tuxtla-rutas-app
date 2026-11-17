@@ -12,6 +12,8 @@ import { TelegramBotService } from '../../telegram/TelegramBotService.js';
 
 let singletonTelegramService = null;
 
+export const getTelegramBotService = () => singletonTelegramService;
+
 /**
  * @param {import('pg').Pool} [dbPool=pool]
  */

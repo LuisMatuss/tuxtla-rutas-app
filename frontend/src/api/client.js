@@ -55514,6 +55514,21 @@ export const BACKUP_ROUTES = [
   }
 ];
 
+// Alinear IDs de BACKUP_ROUTES con los IDs reales de la tabla routes en PostgreSQL (r-001 .. r-012)
+BACKUP_ROUTES.forEach((route, idx) => {
+  const pgId = `r-${String(idx + 1).padStart(3, '0')}`;
+  route.legacyId = route.id;
+  route.id = pgId;
+  if (Array.isArray(route.stops)) {
+    route.stops.forEach((stop, sIdx) => {
+      stop.routeId = pgId;
+      if (!String(stop.id || '').startsWith('r-')) {
+        stop.id = `${pgId}-s-${String(sIdx + 1).padStart(2, '0')}`;
+      }
+    });
+  }
+});
+
 function getRouteShortCode(route) {
   if (!route) return 'Ruta';
   const name = route.name || '';
@@ -56304,13 +56319,8 @@ export const apiClient = {
       const json = await response.json();
       return { success: true, data: json.data, isDemoMode: false };
     } catch (err) {
-      const r = BACKUP_ROUTES.find((item) => item.id === id);
-      if (r) {
-        if (config.frequencyMinutes !== undefined) r.scheduleInfo.frequencyMinutes = config.frequencyMinutes;
-        if (config.status !== undefined) r.scheduleInfo.status = config.status;
-        if (config.color !== undefined) r.color = config.color;
-      }
-      return { success: true, isDemoMode: true };
+      console.error('[Tuxtla-Rutas API] Error al actualizar ruta:', err);
+      throw err;
     }
   },
 
@@ -56336,25 +56346,8 @@ export const apiClient = {
       const json = await response.json();
       return { success: true, data: json.data, isDemoMode: false };
     } catch (err) {
-      const { unitId, routeId, speedKmh = 30 } = payload;
-      const existingIdx = DEMO_UNITS_STATE.findIndex((u) => u.unitId === unitId);
-      const newUnit = {
-        unitId,
-        routeId: routeId || BACKUP_ROUTES[0].id,
-        currentStopIndex: 0,
-        nextStopIndex: 1,
-        direction: 1,
-        progress: 0.1,
-        status: 'IN_TRANSIT',
-        dwellRemainingSec: 0,
-        speedKmh
-      };
-      if (existingIdx >= 0) {
-        DEMO_UNITS_STATE[existingIdx] = { ...DEMO_UNITS_STATE[existingIdx], ...newUnit };
-      } else {
-        DEMO_UNITS_STATE.push(newUnit);
-      }
-      return { success: true, data: newUnit, isDemoMode: true };
+      console.error('[Tuxtla-Rutas API] Error al despachar flota:', err);
+      throw err;
     }
   },
 

@@ -77,27 +77,34 @@ function getAlertIcon(type) {
 }
 
 export function RoadAlertMarkers({ incidents = [], routes = [] }) {
-  const activeAlerts = incidents.filter((i) => i.status === 'ACTIVE_ALERT');
+  const activeAlerts = incidents.filter((i) => i && i.status !== 'RESOLVED');
 
   return (
     <>
       {activeAlerts.map((alert) => {
-        if (!alert.lat || !alert.lng) return null;
+        const lat = Number(alert.lat);
+        const lng = Number(alert.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
-        const affectedRoute = routes.find((r) => r.id === alert.routeId);
+        const rId = alert.routeId || alert.route_id;
+        const affectedRoute = routes.find((r) => r.id === rId);
+        const routeLabel = alert.routeName || alert.route_name || affectedRoute?.name;
+        const routeBadgeColor = alert.routeColor || alert.route_color || affectedRoute?.color || '#2563EB';
+        const delayMin = alert.delayMinutes ?? alert.delay_minutes ?? 10;
+        const createdTime = alert.createdAt || alert.created_at || Date.now();
         const icon = getAlertIcon(alert.type);
 
         return (
           <Marker
             key={alert.id}
-            position={[alert.lat, alert.lng]}
+            position={[lat, lng]}
             icon={icon}
           >
             <Popup>
               <div style={{ fontFamily: 'inherit', color: '#0f172a', minWidth: '200px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                   <span style={{ fontSize: '16px' }}>
-                    {alert.type === 'ROAD_BLOCK' ? '🚧' : alert.type === 'HEAVY_TRAFFIC' ? '🚗' : '⚠️'}
+                    {alert.icon || (alert.type === 'ROAD_BLOCK' ? '🚧' : alert.type === 'HEAVY_TRAFFIC' ? '🚗' : '⚠️')}
                   </span>
                   <strong style={{ fontSize: '13px', color: '#991b1b' }}>
                     {alert.title}
@@ -108,11 +115,11 @@ export function RoadAlertMarkers({ incidents = [], routes = [] }) {
                   {alert.description}
                 </div>
 
-                {affectedRoute && (
+                {routeLabel && (
                   <div style={{ marginBottom: '6px' }}>
                     <span
                       style={{
-                        background: affectedRoute.color || '#2563EB',
+                        background: routeBadgeColor,
                         color: '#ffffff',
                         padding: '2px 6px',
                         borderRadius: '4px',
@@ -120,7 +127,7 @@ export function RoadAlertMarkers({ incidents = [], routes = [] }) {
                         fontWeight: 700
                       }}
                     >
-                      Afecta: {affectedRoute.name}
+                      Afecta: {routeLabel}
                     </span>
                   </div>
                 )}
@@ -140,11 +147,11 @@ export function RoadAlertMarkers({ incidents = [], routes = [] }) {
                   }}
                 >
                   <span>⏱️ Retraso estimado:</span>
-                  <span>+{alert.delayMinutes || 15} minutos</span>
+                  <span>+{delayMin} minutos</span>
                 </div>
 
                 <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>
-                  Reportado: {new Date(alert.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  Reportado: {new Date(createdTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
             </Popup>
